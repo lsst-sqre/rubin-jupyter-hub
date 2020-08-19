@@ -69,14 +69,8 @@ setuptools.setup(
         "argo-workflows>=3.2,<4.0",
         "asgiref>=3,<4",
         "pyyaml>=5",
-        (
-            "rubin_jupyter_utils.helpers "
-            + "@ git+https://github.com/lsst-sqre/rubin-jupyter-helpers.git"
-        ),
-        (
-            "rubin_jupyter_utils.config "
-            + "@ git+https://github.com/lsst-sqre/rubin-jupyter-config.git"
-        ),
+        "rubin_jupyter_utils.helpers>=0.30.1,<1.0",
+        "rubin_jupyter_utils.config>=0.30.1,<1.0"
     ],
     entry_points={
         "console_scripts": [
