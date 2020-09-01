@@ -447,14 +447,10 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             )
         )
         # This is the part that actually makes the K8s resources.
-        self.log.debug(
-            "service account pre-ensure-namespace: {}".format(
-                self.lab_service_account))
         nm.ensure_namespace(namespace=self.namespace, daskconfig=daskconfig)
-        # If we can spawn other pods from the Lab, we need a svcaccount.
+        # If we can spawn other pods from the Lab, we need a svcaccount,
+        #  which we just created in the namespace resources.
         self.lab_service_account = nm.service_account
-        self.log.debug("service account at make_pod: {}".format(
-            self.lab_service_account))
         self.log.debug("About to run make_pod()")
         pod = make_pod(
             name=self.pod_name,
