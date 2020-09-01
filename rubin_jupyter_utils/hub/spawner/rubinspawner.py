@@ -334,7 +334,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             colon = image.find(":")
             if colon > -1:
                 imgname = image[:colon]
-                tag = image[(colon + 1) :]
+                tag = image[(colon + 1):]
                 if tag == "recommended" or tag.startswith("latest"):
                     # Resolve convenience tags to real build tags.
                     self.log.debug("Resolving tag '{}'".format(tag))
@@ -448,6 +448,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
                 json.dumps(sanitized_env, sort_keys=True, indent=4)
             )
         )
+        self.log.debug("service account: {}".format(self.lab_service_account))
         # This is the part that actually makes the K8s resources.
         nm.ensure_namespace(namespace=self.namespace, daskconfig=daskconfig)
         self.log.debug("About to run make_pod()")
