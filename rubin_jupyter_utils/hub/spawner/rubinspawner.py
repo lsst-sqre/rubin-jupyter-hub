@@ -290,8 +290,6 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
         self.default_url = "/lab"
         # We always want to check for refreshed images.
         self.image_pull_policy = "Always"
-        # If we can spawn other pods from the Lab, we need a svcaccount.
-        self.lab_service_account = nm.service_account
         # Get image name
         pod_name = self.pod_name
         # Get default image name; we will try to replace from options form.
@@ -334,7 +332,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             colon = image.find(":")
             if colon > -1:
                 imgname = image[:colon]
-                tag = image[(colon + 1) :]
+                tag = image[(colon + 1):]
                 if tag == "recommended" or tag.startswith("latest"):
                     # Resolve convenience tags to real build tags.
                     self.log.debug("Resolving tag '{}'".format(tag))
@@ -450,6 +448,9 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
         )
         # This is the part that actually makes the K8s resources.
         nm.ensure_namespace(namespace=self.namespace, daskconfig=daskconfig)
+        # If we can spawn other pods from the Lab, we need a svcaccount,
+        #  which we just created in the namespace resources.
+        self.lab_service_account = nm.service_account
         self.log.debug("About to run make_pod()")
         pod = make_pod(
             name=self.pod_name,
