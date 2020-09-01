@@ -290,8 +290,6 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
         self.default_url = "/lab"
         # We always want to check for refreshed images.
         self.image_pull_policy = "Always"
-        # If we can spawn other pods from the Lab, we need a svcaccount.
-        self.lab_service_account = nm.service_account
         # Get image name
         pod_name = self.pod_name
         # Get default image name; we will try to replace from options form.
@@ -448,9 +446,15 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
                 json.dumps(sanitized_env, sort_keys=True, indent=4)
             )
         )
-        self.log.debug("service account: {}".format(self.lab_service_account))
         # This is the part that actually makes the K8s resources.
+        self.log.debug(
+            "service account pre-ensure-namespace: {}".format(
+                self.lab_service_account))
         nm.ensure_namespace(namespace=self.namespace, daskconfig=daskconfig)
+        # If we can spawn other pods from the Lab, we need a svcaccount.
+        self.lab_service_account = nm.service_account
+        self.log.debug("service account at make_pod: {}".format(
+            self.lab_service_account))
         self.log.debug("About to run make_pod()")
         pod = make_pod(
             name=self.pod_name,
