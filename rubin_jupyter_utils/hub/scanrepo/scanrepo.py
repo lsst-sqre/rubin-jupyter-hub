@@ -1,3 +1,4 @@
+import base64
 import datetime
 import functools
 import json
@@ -5,6 +6,7 @@ import logging
 import re
 import requests
 import semver
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -35,6 +37,8 @@ class ScanRepo(object):
         insecure=False,
         sort_field="name",
         debug=False,
+        username=None,
+        password=None,
     ):
         self.data = {}
         self._results = None
@@ -50,6 +54,8 @@ class ScanRepo(object):
         self.path = path
         self.owner = owner
         self.name = name
+        self.username = username
+        self.password = password
         self.experimentals = experimentals
         self.dailies = dailies
         self.weeklies = weeklies
@@ -303,11 +309,10 @@ class ScanRepo(object):
         with start_action(action_type="get_all_tags"):
             return self._all_tags
 
-    def _get_url(self, **kwargs):
+    def _get_url(self, url, headers, **kwargs):
         # Too noisy to log.
         params = None
         resp = None
-        url = self.url
         if kwargs:
             params = urllib.parse.urlencode(kwargs)
             url += "?%s" % params
@@ -321,14 +326,21 @@ class ScanRepo(object):
         """Perform the repository scan.
         """
         with start_action(action_type="scan"):
-            url = self.url
+            headers = {"Accept": "application/json"}
+            url = self.registry_url + "tags/list"
             self.logger.debug("Beginning repo scan of '{}'.".format(url))
             results = []
             page = 1
             resp_bytes = None
             while True:
+                self.logger.debug("Scanning...")
                 try:
-                    resp_bytes = self._get_url(page=page)
+                    resp_bytes = self._get_url(url, headers, page=page)
+                except urllib.error.HTTPError as e:
+                    if e.code == 401:
+                        headers.update(self._authenticate_to_repo(e.hdrs))
+                        self.logger.debug("Headers are now: {}".format(headers))
+                        continue
                 except Exception as e:
                     message = "Failure retrieving %s: %s" % (url, str(e))
                     if resp_bytes:
@@ -344,7 +356,8 @@ class ScanRepo(object):
                         "Could not decode '%s' -> '%s' as JSON"
                         % (url, str(resp_text))
                     )
-                results.extend(j["results"])
+                for tag in j["tags"]:
+                    results.append({"name": tag})
                 if "next" not in j or not j["next"]:
                     break
                 page = page + 1
@@ -372,10 +385,10 @@ class ScanRepo(object):
                 if not namemap.get(tag):
                     namemap[tag] = {
                         "layers": None,
-                        "updated": tstamp,
+                        "updated": None,
                         "hash": None,
                     }
-                if tstamp <= namemap[tag]["updated"] and namemap[tag]["hash"]:
+                if namemap[tag]["hash"]:
                     # We have a manifest
                     # Update results map with hash
                     results[tag]["hash"] = namemap[tag]["hash"]
@@ -433,10 +446,6 @@ class ScanRepo(object):
                     ihash = resp.headers["Docker-Content-Digest"]
                     namemap[name]["hash"] = ihash
                     results[name]["hash"] = ihash
-                dstr = results[name]["last_updated"]
-                if dstr:
-                    dt = self._convert_time(dstr)
-                    namemap[name]["updated"] = dt
             self._name_to_manifest.update(namemap)
             if self.cachefile:
                 self.logger.debug("Writing cache file.")
@@ -489,8 +498,6 @@ class ScanRepo(object):
                 vname = res["name"]
                 reduced_results[vname] = {
                     "name": vname,
-                    "id": res["id"],
-                    "size": res["full_size"],
                     "description": self._describe_tag(vname),
                 }
                 entry = reduced_results[vname]
@@ -544,16 +551,7 @@ class ScanRepo(object):
                 ict = imap[ikey]["count"]
                 if ict:
                     r[ikey] = displayorder[idx][:ict]
-            all_tags = self._sort_tags_by_date()
-            self._all_tags = all_tags
             self.data = r
-
-    def _sort_tags_by_date(self):
-        items = [x[1] for x in self._results_map.items()]
-        dec = [(x["last_updated"], x["name"]) for x in items]
-        dec.sort(reverse=True)
-        tags = [x[1] for x in dec]
-        return tags
 
     def _sort_images_by_name(self, clist):
         # We have a flag day where we start putting underscores into
@@ -655,3 +653,51 @@ class ScanRepo(object):
             # Naive time
             f = "%Y-%m-%dT%H:%M:%S.%f"
         return datetime.datetime.strptime(ts, f)
+
+    def _authenticate_to_repo(self, headers):
+        with start_action(action_type="_authenticate_to_repo"):
+            self.logger.warning("Authentication Required.")
+            self.logger.warning("Headers: {}".format(headers))
+            magicheader = headers.get('WWW-Authenticate', headers.get('Www-Authenticate', None))
+            if magicheader.startswith("BASIC"):
+                auth_hdr = base64.b64encode('{}:{}'.format(self.username, self.password).encode('ascii'))
+                self.logger.info("Auth header now: {}".format(auth_hdr))
+                return {"Authorization": "Basic " + auth_hdr.decode()}
+            if magicheader.startswith("Bearer "):
+                hd = {}
+                hl = magicheader[7:].split(",")
+                for hn in hl:
+                    il = hn.split("=")
+                    kk = il[0]
+                    vv = il[1].replace('"', "")
+                    hd[kk] = vv
+                if (not hd or "realm" not in hd or "service" not in hd
+                        or "scope" not in hd):
+                    return None
+                endpoint = hd["realm"]
+                del hd["realm"]
+                # We need to glue in authentication for DELETE, and that alas
+                #  means a userid and password.
+                r_user = self.username
+                r_pw = self.password
+                auth = None
+                if r_user and r_pw:
+                    auth = (r_user, r_pw)
+                    self.logger.warning("Added Basic Auth credentials")
+                headers = {
+                    "Accept": ("application/vnd.docker.distribution." +
+                               "manifest.v2+json")
+                }
+                self.logger.warning(
+                    "Requesting auth scope {}".format(hd["scope"]))
+                tresp = requests.get(endpoint, headers=headers, params=hd,
+                                     json=True, auth=auth)
+                jresp = tresp.json()
+                authtok = jresp.get("token")
+                if authtok:
+                    self.logger.info("Received an auth token.")
+                    self.logger.warning("{}".format(authtok))
+                    return {"Authorization": "Bearer {}".format(authtok)}
+                else:
+                    self.logger.error("No auth token: {}".format(jresp))
+            return {}
