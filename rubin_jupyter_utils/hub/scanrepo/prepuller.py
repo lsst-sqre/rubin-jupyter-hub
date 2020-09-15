@@ -130,6 +130,8 @@ class Prepuller(object):
                     sort_field=self.args.sort,
                     cachefile=self.cachefile,
                     debug=self.args.debug,
+                    username=self.args.username,
+                    password=self.args.password,
                 )
             if not self.args.no_scan:
                 if self.args.repo:
