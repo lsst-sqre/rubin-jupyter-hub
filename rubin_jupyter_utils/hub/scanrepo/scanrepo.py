@@ -77,11 +77,6 @@ class ScanRepo(object):
         self.cachefile = cachefile
         if self.cachefile:
             self._read_cachefile()
-        if not self.path:
-            self.path = (
-                "/v2/repositories/" + self.owner + "/" + self.name + "/tags/"
-            )
-        self.url = protocol + "://" + exthost + self.path
         self.registry_url = (
             protocol
             + "://"
@@ -92,7 +87,6 @@ class ScanRepo(object):
             + self.name
             + "/"
         )
-        self.logger.debug("URL: {}".format(self.url))
         self.logger.debug("Registry URL: {}".format(self.registry_url))
 
     def __enter__(self):
@@ -316,7 +310,6 @@ class ScanRepo(object):
         if kwargs:
             params = urllib.parse.urlencode(kwargs)
             url += "?%s" % params
-        headers = {"Accept": "application/json"}
         req = urllib.request.Request(url, None, headers)
         resp = urllib.request.urlopen(req)
         page = resp.read()
@@ -381,7 +374,6 @@ class ScanRepo(object):
             namemap = self._name_to_manifest
             check_names = []
             for tag in results:
-                tstamp = self._convert_time(results[tag]["last_updated"])
                 if not namemap.get(tag):
                     namemap[tag] = {
                         "layers": None,
