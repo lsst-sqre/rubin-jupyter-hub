@@ -1,6 +1,7 @@
 """Class to provide namespace manipulation.
 """
 
+import base64
 import json
 import time
 import yaml
@@ -115,8 +116,6 @@ class RubinNamespaceManager(LoggableChild):
 
             pull_secret_ref = client.V1LocalObjectReference(name='pull-secret')
 
-            svcacct = client.V1ServiceAccount(metadata=md, image_pull_secrets=[pull_secret_ref])
-
             account = "{}-svcacct".format(username)
             self.service_account = account
             acd = "argocd.argoproj.io/"
@@ -205,6 +204,25 @@ class RubinNamespaceManager(LoggableChild):
             rbac_api = self.parent.rbac_api
             pull_secret, svcacct, role, rolebinding = self.def_namespaced_account_objects()
             account = self.service_account
+
+            try:
+                self.log.info("Attempting to create pull secret.")
+                api.create_namespaced_secret(
+                    namespace=namespace,
+                    body=pull_secret)
+            except ApiException as e:
+                if e.status != 409:
+                    self.log.exception(("Create pull secret '{}' " +
+                                        "in namespace '{}' " +
+                                        "failed: '{}").format(account,
+                                                              namespace, e))
+                    raise
+                else:
+                    self.log.info(("Pull secret '{}' " +
+                                   "in namespace '{}' " +
+                                   "already exists.").format(account,
+                                                             namespace))
+
             try:
                 self.log.info("Attempting to create service account.")
                 api.create_namespaced_service_account(
