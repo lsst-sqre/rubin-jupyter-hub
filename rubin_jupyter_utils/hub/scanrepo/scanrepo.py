@@ -593,7 +593,7 @@ class ScanRepo(object):
                 major, minor, patch, prerelease, build
             )
             seml.append(cimg["semver"])
-        seml.sort(key=functools.cmp_to_key(semver.compare), reverse=True)
+        seml.sort(key=functools.cmp_to_key(semver.compare))
         sorted_newstyle = []
         for skey in seml:
             for ni in newstyle:
