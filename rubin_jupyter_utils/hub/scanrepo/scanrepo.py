@@ -526,6 +526,8 @@ class ScanRepo(object):
                 ict = imap[ikey]["count"]
                 if ict:
                     r[ikey] = displayorder[idx][:ict]
+
+            self._all_tags = [x[1] for x in self._results_map.items()]
             self.data = r
 
     def _sort_images_by_name(self, clist):
