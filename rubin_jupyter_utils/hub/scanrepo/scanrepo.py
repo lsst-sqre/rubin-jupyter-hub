@@ -138,19 +138,11 @@ class ScanRepo(object):
             rm = self._results_map
             for tag in data.keys():
                 ihash = data[tag].get("hash")
-                updated = None
-                updatedstr = data[tag].get("updated")
-                if updatedstr:
-                    updated = self._convert_time(updatedstr)
-                if ihash and updated:
-                    if tag not in nm or (nm[tag]["updated"] < updated):
-                        nm[tag] = {"hash": ihash, "updated": updated}
+                if ihash:
+                    if tag not in nm:
+                        nm[tag] = {"hash": ihash}
                     if tag not in rm:
-                        rm[tag] = {"last_updated": updatedstr, "name": tag}
-                    else:
-                        l_updated = self._convert_time(rm[tag]["last_updated"])
-                        if l_updated < updated:
-                            rm[tag] = {"last_updated": updatedstr, "name": tag}
+                        rm[tag] = {"name": tag}
 
     def _describe_tag(self, tag):
         # New-style tags have underscores separating components.
@@ -257,15 +249,9 @@ class ScanRepo(object):
             nm = self._name_to_manifest
             rm = self._results_map
             for k in nm:
-                dt = nm[k].get("updated")
-                dstr = None
-                if dt:
-                    dstr = self._serialize_datetime(dt)
-                else:
-                    dstr = rm[k].get("last_updated")
                 ihash = nm[k].get("hash")
-                if ihash and dstr:
-                    modmap[k] = {"updated": dstr, "hash": ihash}
+                if ihash:
+                    modmap[k] = {"hash": ihash}
             return json.dumps(modmap, sort_keys=True, indent=4)
 
     def _serialize_datetime(self, o):
@@ -377,7 +363,6 @@ class ScanRepo(object):
                 if not namemap.get(tag):
                     namemap[tag] = {
                         "layers": None,
-                        "updated": None,
                         "hash": None,
                     }
                 if namemap[tag]["hash"]:
@@ -495,10 +480,8 @@ class ScanRepo(object):
                 entry = reduced_results[vname]
                 manifest = self._name_to_manifest.get(vname)
                 if manifest:
-                    entry["updated"] = manifest.get("updated")
                     entry["hash"] = manifest.get("hash")
                 else:
-                    entry["updated"] = self._convert_time(res["last_updated"])
                     entry["hash"] = None
             for res in reduced_results:
                 if res.startswith("r") and not res.startswith("recommended"):
