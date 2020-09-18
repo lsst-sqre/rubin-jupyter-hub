@@ -525,9 +525,10 @@ class ScanRepo(object):
                 idx = imap[ikey]["index"]
                 ict = imap[ikey]["count"]
                 if ict:
-                    r[ikey] = displayorder[idx][-ict:]
+                    r[ikey] = displayorder[idx][:ict]
 
             self._all_tags = [x[1]['name'] for x in self._results_map.items()]
+            self._all_tags.reverse()
             self.data = r
 
     def _sort_images_by_name(self, clist):
@@ -593,7 +594,7 @@ class ScanRepo(object):
                 major, minor, patch, prerelease, build
             )
             seml.append(cimg["semver"])
-        seml.sort(key=functools.cmp_to_key(semver.compare))
+        seml.sort(key=functools.cmp_to_key(semver.compare), reverse=True)
         sorted_newstyle = []
         for skey in seml:
             for ni in newstyle:
