@@ -318,7 +318,7 @@ class ScanRepo(object):
                 except urllib.error.HTTPError as e:
                     if e.code == 401:
                         headers.update(self._authenticate_to_repo(e.hdrs))
-                        self.logger.debug("Headers are now: {}".format(headers))
+                        self.logger.debug("Authenticated to repo")
                         continue
                 except Exception as e:
                     message = "Failure retrieving %s: %s" % (url, str(e))
