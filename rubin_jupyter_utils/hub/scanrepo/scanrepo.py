@@ -525,7 +525,7 @@ class ScanRepo(object):
                 idx = imap[ikey]["index"]
                 ict = imap[ikey]["count"]
                 if ict:
-                    r[ikey] = displayorder[idx][:ict]
+                    r[ikey] = displayorder[idx][-ict:]
 
             self._all_tags = [x[1]['name'] for x in self._results_map.items()]
             self.data = r
