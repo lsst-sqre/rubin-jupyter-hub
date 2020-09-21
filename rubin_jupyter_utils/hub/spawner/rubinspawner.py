@@ -10,7 +10,7 @@ from rubin_jupyter_utils.helpers import (
     assemble_gids,
     get_supplemental_gids,
 )
-from .multispawner import MultiNamespacedKubeSpawner
+from kubespawner.spawner import MultiNamespacedKubeSpawner
 from eliot import start_action
 from kubespawner.objects import make_pod
 from tornado import gen
@@ -47,6 +47,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
     def __init__(self, *args, **kwargs):
         self.log = make_logger()
         super().__init__(*args, **kwargs)
+        self.namespace = self.get_user_namespace()
         self.log.debug("Creating RubinSpawner.")
         # Our API and our RBAC API are set in the super() __init__()
         # We want our own Rubin Manager per spawner.
@@ -68,7 +69,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
         )
         self.log.debug("Initialized {}".format(__name__))
         self.cached_auth_state = {}
-        self.delete_grace_period = 5
+        self.delete_grace_period = 25  # K8s usually takes about 10.
         # In the Rubin setup, there is a "provisionator" user, uid/gid 769,
         #  that is who we should start as, unless we are running sudoless.
         # If we are, we set the uid/gid/supplemental gids accordingly.
@@ -155,19 +156,6 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             ns = self.get_user_namespace()
             self.namespace = ns
             self.rubin_mgr.namespace_mgr.set_namespace(ns)
-
-    def get_user_namespace(self):
-        """Return namespace for user pods (and ancillary objects).
-        """
-        with start_action(action_type="get_user_namespace"):
-            defname = self._namespace_default()
-            # We concatenate the default namespace and the name so that we
-            #  can continue having multiple Jupyter instances in the same
-            #  k8s cluster in different namespaces.  The user namespaces must
-            #  themselves be namespaced, as it were.
-            if defname == "default":
-                raise ValueError("Won't spawn into default namespace!")
-            return "{}-{}".format(defname, self.user.escaped_name)
 
     def start(self):
         """Thin wrapper around self._start
