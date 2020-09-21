@@ -466,10 +466,6 @@ class ScanRepo(object):
             displayorder.extend(
                 [e_candidates, d_candidates, w_candidates, r_candidates]
             )
-            # This is the order for tags to appear in drop-down:
-            imgorder = [l_candidates]
-            imgorder.extend(displayorder)
-            imgorder.extend(o_candidates)
             reduced_results = {}
             for res in results:
                 vname = res["name"]
@@ -498,11 +494,12 @@ class ScanRepo(object):
                     c_candidates.append(reduced_results[res])
                 else:
                     o_candidates.append(res)
-            for clist in imgorder:
-                if sort_field != "name":
-                    clist.sort(key=lambda x: x[sort_field], reverse=True)
-                else:
-                    clist = self._sort_images_by_name(clist)
+
+            for clist in [r_candidates, w_candidates, d_candidates,
+                          e_candidates, l_candidates, c_candidates,
+                          o_candidates]:
+                clist.sort(key=lambda x: x[sort_field], reverse=True)
+
             r = {}
             # Index corresponds to order in displayorder
             idxbase = 0
@@ -530,107 +527,6 @@ class ScanRepo(object):
             self._all_tags = [x[1]['name'] for x in self._results_map.items()]
             self._all_tags.reverse()
             self.data = r
-
-    def _sort_images_by_name(self, clist):
-        # We have a flag day where we start putting underscores into
-        #  image tags.  Those always go at the top.
-        # We begin by splitting the list of candidate images into new
-        #  and old style images.
-        oldstyle = []
-        newstyle = []
-        for cimg in clist:
-            name = cimg["name"]
-            if name.find("_") == -1:
-                oldstyle.append(cimg)
-            else:
-                # "latest_X" is not a semantic version tag.
-                if name.startswith("latest_"):
-                    oldstyle.append(cimg)
-                else:
-                    newstyle.append(cimg)
-        # Old-style sort is simple string comparison.
-        oldstyle.sort(key=lambda x: x["name"], reverse=True)
-        # New style, we refer to semver module for comparison.
-        #  (also works fine for date sorts)
-        seml = []
-        for cimg in newstyle:
-            name = cimg["name"]
-            components = name.split("_")
-            # Get this.  It's not represented as r_17, no, it's r17.
-            # So if we find that the end of the first group is digits,
-            #  we split those off with a regular expression, and insert
-            #  them into the list where the major number should be.
-            ctype = components[0]
-            ctm = re.search(r"\d+$", ctype)
-            if ctm is not None:
-                mj = int(ctm.group())
-                components.insert(1, mj)
-            # First character is image type, not semantically significant
-            #  for versioning.
-            if components[0] == "exp":
-                _ = components.pop(0)
-            major = 0
-            if len(components) > 1:
-                major = int(components[1])
-            minor = 0
-            if len(components) > 2:
-                minor = int(components[2])
-            patch = 0
-            prerelease = None
-            if len(components) > 3:
-                try:
-                    patch = int(components[3])
-                except ValueError:
-                    # Not an integer, so this is probably an experimental/
-                    #  not-for-release version, so leave it at patch level 0
-                    #  and treat the string as a prerelease version
-                    prerelease = components[3]
-            if len(components) > 4:
-                prerelease = components[4]
-            build = None
-            if len(components) > 5:
-                build = "_".join(components[5:])
-            cimg["semver"] = semver.format_version(
-                major, minor, patch, prerelease, build
-            )
-            seml.append(cimg["semver"])
-        seml.sort(key=functools.cmp_to_key(semver.compare), reverse=True)
-        sorted_newstyle = []
-        for skey in seml:
-            for ni in newstyle:
-                if ni["semver"] == skey:
-                    sorted_newstyle.append(ni)
-                    break
-        # Return all new style names first.
-        return sorted_newstyle.extend(oldstyle)
-
-    def _sort_releases_by_name(self, r_candidates):
-        with start_action(action_type="_sort_releases_by_name"):
-            # rXYZrc2 should *precede* rXYZ
-            # We're going to decorate short (that is, no rc tag) release names
-            #  with "zzz", re-sort, and then undecorate.
-            nm = {}
-            for c in r_candidates:
-                tag = c["name"]
-                if len(tag) == 4:
-                    xtag = tag + "zzz"
-                    nm[xtag] = tag
-                    c["name"] = xtag
-            r_candidates.sort(key=lambda x: x["name"], reverse=True)
-            for c in r_candidates:
-                xtag = c["name"]
-                c["name"] = nm[xtag]
-            return r_candidates
-
-    # Don't annotate this one; datetime isn't serializable.
-    def _convert_time(self, ts):
-        f = "%Y-%m-%dT%H:%M:%S.%f%Z"
-        if ts[-1] == "Z":
-            ts = ts[:-1] + "UTC"
-        if ts[-1].isdigit():
-            # Naive time
-            f = "%Y-%m-%dT%H:%M:%S.%f"
-        return datetime.datetime.strptime(ts, f)
 
     def _authenticate_to_repo(self, headers):
         with start_action(action_type="_authenticate_to_repo"):
