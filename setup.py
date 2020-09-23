@@ -61,7 +61,7 @@ setuptools.setup(
         "oauthenticator>=0.9,<1.0",
         "jupyter-client>=6,<7",
         "jupyterhub-jwtauthenticator>=0.1,<1.0",
-        "jupyterhub-kubespawner>=0.12,<1.0",
+        "jupyterhub-kubespawner>=0.13,<1.0",
         "jinja2>=2,<3",
         "pytz>=2020",
         "eliot>=1,<2",
