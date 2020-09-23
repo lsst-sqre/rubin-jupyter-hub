@@ -22,6 +22,8 @@ def standalone():
         sort_field=args.sort,
         cachefile=args.cachefile,
         debug=args.debug,
+        username=args.username,
+        password=args.password,
     )
     scanner.scan()
     scanner.report()

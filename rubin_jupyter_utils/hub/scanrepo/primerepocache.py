@@ -13,5 +13,7 @@ def prime_repo_cache(cfg):
         dailies=cfg.prepuller_dailies,
         weeklies=cfg.prepuller_weeklies,
         releases=cfg.prepuller_releases,
+        username=cfg.lab_repo_username,
+        password=cfg.lab_repo_password,
     )
     scr.scan()

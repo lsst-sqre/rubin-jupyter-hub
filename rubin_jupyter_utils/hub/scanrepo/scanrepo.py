@@ -1,3 +1,4 @@
+import base64
 import datetime
 import functools
 import json
@@ -5,6 +6,7 @@ import logging
 import re
 import requests
 import semver
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -35,6 +37,8 @@ class ScanRepo(object):
         insecure=False,
         sort_field="name",
         debug=False,
+        username=None,
+        password=None,
     ):
         self.data = {}
         self._results = None
@@ -50,6 +54,8 @@ class ScanRepo(object):
         self.path = path
         self.owner = owner
         self.name = name
+        self.username = username
+        self.password = password
         self.experimentals = experimentals
         self.dailies = dailies
         self.weeklies = weeklies
@@ -71,11 +77,6 @@ class ScanRepo(object):
         self.cachefile = cachefile
         if self.cachefile:
             self._read_cachefile()
-        if not self.path:
-            self.path = (
-                "/v2/repositories/" + self.owner + "/" + self.name + "/tags/"
-            )
-        self.url = protocol + "://" + exthost + self.path
         self.registry_url = (
             protocol
             + "://"
@@ -86,7 +87,6 @@ class ScanRepo(object):
             + self.name
             + "/"
         )
-        self.logger.debug("URL: {}".format(self.url))
         self.logger.debug("Registry URL: {}".format(self.registry_url))
 
     def __enter__(self):
@@ -138,19 +138,11 @@ class ScanRepo(object):
             rm = self._results_map
             for tag in data.keys():
                 ihash = data[tag].get("hash")
-                updated = None
-                updatedstr = data[tag].get("updated")
-                if updatedstr:
-                    updated = self._convert_time(updatedstr)
-                if ihash and updated:
-                    if tag not in nm or (nm[tag]["updated"] < updated):
-                        nm[tag] = {"hash": ihash, "updated": updated}
+                if ihash:
+                    if tag not in nm:
+                        nm[tag] = {"hash": ihash}
                     if tag not in rm:
-                        rm[tag] = {"last_updated": updatedstr, "name": tag}
-                    else:
-                        l_updated = self._convert_time(rm[tag]["last_updated"])
-                        if l_updated < updated:
-                            rm[tag] = {"last_updated": updatedstr, "name": tag}
+                        rm[tag] = {"name": tag}
 
     def _describe_tag(self, tag):
         # New-style tags have underscores separating components.
@@ -257,15 +249,9 @@ class ScanRepo(object):
             nm = self._name_to_manifest
             rm = self._results_map
             for k in nm:
-                dt = nm[k].get("updated")
-                dstr = None
-                if dt:
-                    dstr = self._serialize_datetime(dt)
-                else:
-                    dstr = rm[k].get("last_updated")
                 ihash = nm[k].get("hash")
-                if ihash and dstr:
-                    modmap[k] = {"updated": dstr, "hash": ihash}
+                if ihash:
+                    modmap[k] = {"hash": ihash}
             return json.dumps(modmap, sort_keys=True, indent=4)
 
     def _serialize_datetime(self, o):
@@ -303,15 +289,13 @@ class ScanRepo(object):
         with start_action(action_type="get_all_tags"):
             return self._all_tags
 
-    def _get_url(self, **kwargs):
+    def _get_url(self, url, headers, **kwargs):
         # Too noisy to log.
         params = None
         resp = None
-        url = self.url
         if kwargs:
             params = urllib.parse.urlencode(kwargs)
             url += "?%s" % params
-        headers = {"Accept": "application/json"}
         req = urllib.request.Request(url, None, headers)
         resp = urllib.request.urlopen(req)
         page = resp.read()
@@ -321,14 +305,21 @@ class ScanRepo(object):
         """Perform the repository scan.
         """
         with start_action(action_type="scan"):
-            url = self.url
+            headers = {"Accept": "application/json"}
+            url = self.registry_url + "tags/list"
             self.logger.debug("Beginning repo scan of '{}'.".format(url))
             results = []
             page = 1
             resp_bytes = None
             while True:
+                self.logger.debug("Scanning...")
                 try:
-                    resp_bytes = self._get_url(page=page)
+                    resp_bytes = self._get_url(url, headers, page=page)
+                except urllib.error.HTTPError as e:
+                    if e.code == 401:
+                        headers.update(self._authenticate_to_repo(e.hdrs))
+                        self.logger.debug("Authenticated to repo")
+                        continue
                 except Exception as e:
                     message = "Failure retrieving %s: %s" % (url, str(e))
                     if resp_bytes:
@@ -344,7 +335,8 @@ class ScanRepo(object):
                         "Could not decode '%s' -> '%s' as JSON"
                         % (url, str(resp_text))
                     )
-                results.extend(j["results"])
+                for tag in j["tags"]:
+                    results.append({"name": tag})
                 if "next" not in j or not j["next"]:
                     break
                 page = page + 1
@@ -368,14 +360,12 @@ class ScanRepo(object):
             namemap = self._name_to_manifest
             check_names = []
             for tag in results:
-                tstamp = self._convert_time(results[tag]["last_updated"])
                 if not namemap.get(tag):
                     namemap[tag] = {
                         "layers": None,
-                        "updated": tstamp,
                         "hash": None,
                     }
-                if tstamp <= namemap[tag]["updated"] and namemap[tag]["hash"]:
+                if namemap[tag]["hash"]:
                     # We have a manifest
                     # Update results map with hash
                     results[tag]["hash"] = namemap[tag]["hash"]
@@ -433,10 +423,6 @@ class ScanRepo(object):
                     ihash = resp.headers["Docker-Content-Digest"]
                     namemap[name]["hash"] = ihash
                     results[name]["hash"] = ihash
-                dstr = results[name]["last_updated"]
-                if dstr:
-                    dt = self._convert_time(dstr)
-                    namemap[name]["updated"] = dt
             self._name_to_manifest.update(namemap)
             if self.cachefile:
                 self.logger.debug("Writing cache file.")
@@ -480,26 +466,18 @@ class ScanRepo(object):
             displayorder.extend(
                 [e_candidates, d_candidates, w_candidates, r_candidates]
             )
-            # This is the order for tags to appear in drop-down:
-            imgorder = [l_candidates]
-            imgorder.extend(displayorder)
-            imgorder.extend(o_candidates)
             reduced_results = {}
             for res in results:
                 vname = res["name"]
                 reduced_results[vname] = {
                     "name": vname,
-                    "id": res["id"],
-                    "size": res["full_size"],
                     "description": self._describe_tag(vname),
                 }
                 entry = reduced_results[vname]
                 manifest = self._name_to_manifest.get(vname)
                 if manifest:
-                    entry["updated"] = manifest.get("updated")
                     entry["hash"] = manifest.get("hash")
                 else:
-                    entry["updated"] = self._convert_time(res["last_updated"])
                     entry["hash"] = None
             for res in reduced_results:
                 if res.startswith("r") and not res.startswith("recommended"):
@@ -516,11 +494,12 @@ class ScanRepo(object):
                     c_candidates.append(reduced_results[res])
                 else:
                     o_candidates.append(res)
-            for clist in imgorder:
-                if sort_field != "name":
-                    clist.sort(key=lambda x: x[sort_field], reverse=True)
-                else:
-                    clist = self._sort_images_by_name(clist)
+
+            for clist in [r_candidates, w_candidates, d_candidates,
+                          e_candidates, l_candidates, c_candidates,
+                          o_candidates]:
+                clist.sort(key=lambda x: x[sort_field], reverse=True)
+
             r = {}
             # Index corresponds to order in displayorder
             idxbase = 0
@@ -544,114 +523,55 @@ class ScanRepo(object):
                 ict = imap[ikey]["count"]
                 if ict:
                     r[ikey] = displayorder[idx][:ict]
-            all_tags = self._sort_tags_by_date()
-            self._all_tags = all_tags
+
+            self._all_tags = [x[1]['name'] for x in self._results_map.items()]
+            self._all_tags.reverse()
             self.data = r
 
-    def _sort_tags_by_date(self):
-        items = [x[1] for x in self._results_map.items()]
-        dec = [(x["last_updated"], x["name"]) for x in items]
-        dec.sort(reverse=True)
-        tags = [x[1] for x in dec]
-        return tags
-
-    def _sort_images_by_name(self, clist):
-        # We have a flag day where we start putting underscores into
-        #  image tags.  Those always go at the top.
-        # We begin by splitting the list of candidate images into new
-        #  and old style images.
-        oldstyle = []
-        newstyle = []
-        for cimg in clist:
-            name = cimg["name"]
-            if name.find("_") == -1:
-                oldstyle.append(cimg)
-            else:
-                # "latest_X" is not a semantic version tag.
-                if name.startswith("latest_"):
-                    oldstyle.append(cimg)
+    def _authenticate_to_repo(self, headers):
+        with start_action(action_type="_authenticate_to_repo"):
+            self.logger.warning("Authentication Required.")
+            self.logger.warning("Headers: {}".format(headers))
+            magicheader = headers.get('WWW-Authenticate', headers.get('Www-Authenticate', None))
+            if magicheader.startswith("BASIC"):
+                auth_hdr = base64.b64encode('{}:{}'.format(self.username, self.password).encode('ascii'))
+                self.logger.info("Auth header now: {}".format(auth_hdr))
+                return {"Authorization": "Basic " + auth_hdr.decode()}
+            if magicheader.startswith("Bearer "):
+                hd = {}
+                hl = magicheader[7:].split(",")
+                for hn in hl:
+                    il = hn.split("=")
+                    kk = il[0]
+                    vv = il[1].replace('"', "")
+                    hd[kk] = vv
+                if (not hd or "realm" not in hd or "service" not in hd
+                        or "scope" not in hd):
+                    return None
+                endpoint = hd["realm"]
+                del hd["realm"]
+                # We need to glue in authentication for DELETE, and that alas
+                #  means a userid and password.
+                r_user = self.username
+                r_pw = self.password
+                auth = None
+                if r_user and r_pw:
+                    auth = (r_user, r_pw)
+                    self.logger.warning("Added Basic Auth credentials")
+                headers = {
+                    "Accept": ("application/vnd.docker.distribution." +
+                               "manifest.v2+json")
+                }
+                self.logger.warning(
+                    "Requesting auth scope {}".format(hd["scope"]))
+                tresp = requests.get(endpoint, headers=headers, params=hd,
+                                     json=True, auth=auth)
+                jresp = tresp.json()
+                authtok = jresp.get("token")
+                if authtok:
+                    self.logger.info("Received an auth token.")
+                    self.logger.warning("{}".format(authtok))
+                    return {"Authorization": "Bearer {}".format(authtok)}
                 else:
-                    newstyle.append(cimg)
-        # Old-style sort is simple string comparison.
-        oldstyle.sort(key=lambda x: x["name"], reverse=True)
-        # New style, we refer to semver module for comparison.
-        #  (also works fine for date sorts)
-        seml = []
-        for cimg in newstyle:
-            name = cimg["name"]
-            components = name.split("_")
-            # Get this.  It's not represented as r_17, no, it's r17.
-            # So if we find that the end of the first group is digits,
-            #  we split those off with a regular expression, and insert
-            #  them into the list where the major number should be.
-            ctype = components[0]
-            ctm = re.search(r"\d+$", ctype)
-            if ctm is not None:
-                mj = int(ctm.group())
-                components.insert(1, mj)
-            # First character is image type, not semantically significant
-            #  for versioning.
-            if components[0] == "exp":
-                _ = components.pop(0)
-            major = 0
-            if len(components) > 1:
-                major = int(components[1])
-            minor = 0
-            if len(components) > 2:
-                minor = int(components[2])
-            patch = 0
-            prerelease = None
-            if len(components) > 3:
-                try:
-                    patch = int(components[3])
-                except ValueError:
-                    # Not an integer, so this is probably an experimental/
-                    #  not-for-release version, so leave it at patch level 0
-                    #  and treat the string as a prerelease version
-                    prerelease = components[3]
-            if len(components) > 4:
-                prerelease = components[4]
-            build = None
-            if len(components) > 5:
-                build = "_".join(components[5:])
-            cimg["semver"] = semver.format_version(
-                major, minor, patch, prerelease, build
-            )
-            seml.append(cimg["semver"])
-        seml.sort(key=functools.cmp_to_key(semver.compare), reverse=True)
-        sorted_newstyle = []
-        for skey in seml:
-            for ni in newstyle:
-                if ni["semver"] == skey:
-                    sorted_newstyle.append(ni)
-                    break
-        # Return all new style names first.
-        return sorted_newstyle.extend(oldstyle)
-
-    def _sort_releases_by_name(self, r_candidates):
-        with start_action(action_type="_sort_releases_by_name"):
-            # rXYZrc2 should *precede* rXYZ
-            # We're going to decorate short (that is, no rc tag) release names
-            #  with "zzz", re-sort, and then undecorate.
-            nm = {}
-            for c in r_candidates:
-                tag = c["name"]
-                if len(tag) == 4:
-                    xtag = tag + "zzz"
-                    nm[xtag] = tag
-                    c["name"] = xtag
-            r_candidates.sort(key=lambda x: x["name"], reverse=True)
-            for c in r_candidates:
-                xtag = c["name"]
-                c["name"] = nm[xtag]
-            return r_candidates
-
-    # Don't annotate this one; datetime isn't serializable.
-    def _convert_time(self, ts):
-        f = "%Y-%m-%dT%H:%M:%S.%f%Z"
-        if ts[-1] == "Z":
-            ts = ts[:-1] + "UTC"
-        if ts[-1].isdigit():
-            # Naive time
-            f = "%Y-%m-%dT%H:%M:%S.%f"
-        return datetime.datetime.strptime(ts, f)
+                    self.logger.error("No auth token: {}".format(jresp))
+            return {}

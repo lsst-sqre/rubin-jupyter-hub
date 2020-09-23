@@ -1,6 +1,7 @@
 """Class to provide namespace manipulation.
 """
 
+import base64
 import json
 import time
 import yaml
@@ -94,6 +95,27 @@ class RubinNamespaceManager(LoggableChild):
         with start_action(action_type="define_namespaced_account_objects"):
             namespace = self.namespace
             username = self.parent.user.escaped_name
+
+            cfg = self.parent.config
+            basic_auth = '{}:{}'.format(cfg.lab_repo_username, cfg.lab_repo_password).encode('utf-8')
+            authdata = {
+              "auths": {
+                cfg.lab_repo_host: {
+                  "username": cfg.lab_repo_username,
+                  "password": cfg.lab_repo_password,
+                  "auth": base64.b64encode(basic_auth).decode('utf-8')
+                }
+              }
+            }
+
+            b64authdata = base64.b64encode(json.dumps(authdata).encode('utf-8')).decode('utf-8')
+            pull_secret = client.V1Secret()
+            pull_secret.metadata = client.V1ObjectMeta(name='pull-secret')
+            pull_secret.type = "kubernetes.io/dockerconfigjson"
+            pull_secret.data = {".dockerconfigjson": b64authdata}
+
+            pull_secret_ref = client.V1LocalObjectReference(name='pull-secret')
+
             account = "{}-svcacct".format(username)
             self.service_account = account
             acd = "argocd.argoproj.io/"
@@ -105,7 +127,9 @@ class RubinNamespaceManager(LoggableChild):
                     acd + "sync-options": "Prune=false",
                 },
             )
-            svcacct = client.V1ServiceAccount(metadata=md)
+            svcacct = client.V1ServiceAccount(metadata=md,
+                image_pull_secrets=[pull_secret_ref])
+
             # These rules let us manipulate Dask pods, Argo Workflows, and
             #  Multus CNI interfaces
             rules = [
@@ -167,7 +191,7 @@ class RubinNamespaceManager(LoggableChild):
                     )
                 ],
             )
-            return svcacct, role, rolebinding
+            return pull_secret, svcacct, role, rolebinding
 
     def ensure_namespaced_service_account(self):
         """Create a service account with role and rolebinding to allow it
@@ -178,8 +202,27 @@ class RubinNamespaceManager(LoggableChild):
             namespace = self.namespace
             api = self.parent.api
             rbac_api = self.parent.rbac_api
-            svcacct, role, rolebinding = self.def_namespaced_account_objects()
+            pull_secret, svcacct, role, rolebinding = self.def_namespaced_account_objects()
             account = self.service_account
+
+            try:
+                self.log.info("Attempting to create pull secret.")
+                api.create_namespaced_secret(
+                    namespace=namespace,
+                    body=pull_secret)
+            except ApiException as e:
+                if e.status != 409:
+                    self.log.exception(("Create pull secret '{}' " +
+                                        "in namespace '{}' " +
+                                        "failed: '{}").format(account,
+                                                              namespace, e))
+                    raise
+                else:
+                    self.log.info(("Pull secret '{}' " +
+                                   "in namespace '{}' " +
+                                   "already exists.").format(account,
+                                                             namespace))
+
             try:
                 self.log.info("Attempting to create service account.")
                 api.create_namespaced_service_account(

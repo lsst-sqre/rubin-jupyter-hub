@@ -130,6 +130,8 @@ class Prepuller(object):
                     sort_field=self.args.sort,
                     cachefile=self.cachefile,
                     debug=self.args.debug,
+                    username=self.args.username,
+                    password=self.args.password,
                 )
             if not self.args.no_scan:
                 if self.args.repo:
@@ -139,18 +141,10 @@ class Prepuller(object):
                 else:
                     self.logger.debug("Scanning Docker repo for images")
                 self.repo.scan()
-                if self.repo.debug:
-                    repocopy = copy.deepcopy(self.repo.data)
-                    for itype in repocopy:
-                        for item in repocopy[itype]:
-                            uddt = item["updated"]
-                            if type(uddt) is datetime.datetime:
-                                uddt = uddt.isoformat()
-                                item["updated"] = uddt
-                    self.logger.debug(
-                        "Scan Data: "
-                        + json.dumps(repocopy, sort_keys=True, indent=4)
-                    )
+                self.logger.debug(
+                    "Scan Data: "
+                    + json.dumps(self.repo.data, sort_keys=True, indent=4)
+                )
                 scan_imgs = []
                 sections = []
                 if self.args.recommended:
