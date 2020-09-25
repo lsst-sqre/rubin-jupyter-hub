@@ -1,11 +1,11 @@
 import base64
 import datetime
-import functools
 import json
 import logging
+import math
+import os
 import re
 import requests
-import semver
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -35,7 +35,7 @@ class ScanRepo(object):
         port=None,
         cachefile=None,
         insecure=False,
-        sort_field="name",
+        sort_field="sort_tag",
         debug=False,
         username=None,
         password=None,
@@ -45,6 +45,7 @@ class ScanRepo(object):
         self._results_map = {}
         self._name_to_manifest = {}
         self._all_tags = []
+        self.last_scan = datetime.datetime(1970, 1, 1)  # The Epoch
         self.debug = debug
         self.logger = make_logger()
         if self.debug:
@@ -116,7 +117,7 @@ class ScanRepo(object):
                 tag = c["name"]
                 ld = c.get("description")
                 if not ld:
-                    ld = self._describe_tag(tag)
+                    ld, datedict = self._describe_tag(tag)
                 ldescs.append(ld)
             ls = [self.owner + "/" + self.name + ":" + x["name"] for x in cs]
             return ls, ldescs
@@ -143,13 +144,36 @@ class ScanRepo(object):
                         nm[tag] = {"hash": ihash}
                     if tag not in rm:
                         rm[tag] = {"name": tag}
+            self.last_scan = datetime.datetime.fromtimestamp(
+                os.path.getmtime(fn))
 
     def _describe_tag(self, tag):
+        # This method has been further abused to extract a tag-derived
+        #  date dict from the tag name.  This *should* be pretty close
+        #  to the build date.  Assuming no rebuild shenanigans, the only
+        #  cases we have to worry about are releases and straight-up
+        #  don't-fit-our-scheme tags.
+        #
+        # So we're going to make up a build date for releases that's not
+        #  too bad for r20 (current when the new sort code was done) and
+        #  gets less accurate the farther from it you go, but assuming
+        #  we keep using sequential numbers, it'll still sort in the right
+        #  order, even if our date is inaccurate.
+        #
         # New-style tags have underscores separating components.
         # Don't log it; way too noisy.
         ld = tag  # Default description is just the tag name
         components = None
-        if tag.find("_") != -1:
+        ttype = None
+        year = None
+        week = None
+        month = None
+        day = None
+        rest = None
+        rmaj = None
+        rmin = None
+        rpatch = None
+        if tag.find("_") != -1:  # New-style tag
             components = tag.split("_")
             btype = components[0]
             # Handle the r17_0_1 case.
@@ -162,56 +186,172 @@ class ScanRepo(object):
                 ld = tag[0].upper() + tag[1:]
                 restag = self.resolve_tag(tag)
                 if restag:
-                    ld += " ({})".format(self._describe_tag(restag))
+                    rest_ld, datedict = self._describe_tag(restag)
+                    year, month, day, rest, rmaj, rmin, \
+                        rpatch, ttype = self._expand_datedict(datedict)
+                    ld += " ({})".format(rest_ld)
             elif btype == "r":
+                ttype = "release"
                 rmaj = components[1]
                 rmin = components[2]
                 rpatch = None
-                rrest = None
                 if len(components) > 3:
                     rpatch = components[3]
                 if len(components) > 4:
-                    rrest = "_".join(components[4:])
+                    rest = "_".join(components[4:])
                 ld = "Release %s.%s" % (rmaj, rmin)
                 if rpatch:
                     ld = ld + "." + rpatch
-                if rrest:
-                    ld = ld + "-" + rrest
+                if rest:
+                    ld = ld + "-" + rest
             elif btype == "w":
+                ttype = "weekly"
                 year = components[1]
                 week = components[2]
+                year, month, day = self._translate_week(year, week)
+                if len(components) > 3:
+                    rest = "_".join(components[3:])
                 ld = "Weekly %s_%s" % (year, week)
             elif btype == "d":
+                ttype = "daily"
                 year = components[1]
                 month = components[2]
                 day = components[3]
+                if len(components) > 4:
+                    rest = "_".join(components[4:])
                 ld = "Daily %s_%s_%s" % (year, month, day)
             elif btype == "exp":
-                rest = "_".join(components[1:])
-                ld = "Experimental %s" % rest
-        else:
+                ttype = "experimental"
+                tagrest = components[1:]
+                exprest = "_".join(tagrest)
+                ld, datedict = self._describe_tag(exprest)
+                year, month, day, rest, rmaj, rmin, \
+                    rpatch, ttype = self._expand_datedict(datedict)
+                ld = "Experimental " + ld
+                if rest:
+                    ld = ld + "_" + rest
+        else:  # old-style tag -- thoroughly obsolete now.
             if tag.startswith("recommended") or tag.startswith("latest"):
                 ld = tag[0].upper() + tag[1:]
                 restag = self.resolve_tag(tag)
                 if restag:
-                    ld += " ({})".format(self._describe_tag(restag))
+                    rest_ld, datedict = self._describe_tag(restag)
+                    year, month, day, rest, rmaj, rmin, \
+                        rpatch, ttype = self._expand_datedict(datedict)
+                    ld += " ({})".format(rest_ld)
             elif tag[0] == "r":
+                ttype = "release"
                 rmaj = tag[1:3]
                 rmin = tag[3:]
                 ld = "Release %s.%s" % (rmaj, rmin)
             elif tag[0] == "w":
+                ttype = "weekly"
                 year = tag[1:5]
-                week = tag[5:]
+                week = tag[5:7]
+                year, month, day = self._translate_week(year, week)
                 ld = "Weekly %s_%s" % (year, week)
             elif tag[0] == "d":
+                ttype = "daily"
                 year = tag[1:5]
                 month = tag[5:7]
                 day = tag[7:]
                 ld = "Daily %s_%s_%s" % (year, month, day)
             elif tag[0] == "e":
+                ttype = "experimental"
                 rest = tag[1:]
-                ld = "Experimental %s" % rest
-        return ld
+                ld, datedict = self._describe_tag(rest)
+                year, month, day, rest, rmaj, rmin, \
+                    rpatch, ttype = self._expand_datedict(datedict)
+                ld = "Experimental " + ld
+        datedict = {"year": year,
+                    "month": month,
+                    "day": day,
+                    "rest": rest,
+                    "rmaj": rmaj,
+                    "rmin": rmin,
+                    "rpatch": rpatch,
+                    "type": ttype,
+                    "sort_tag": None}
+        datedict["sort_tag"] = self._get_sort_tag(datedict)
+        return ld, datedict
+
+    def _expand_datedict(self, datedict):
+        year = datedict["year"]
+        month = datedict["month"]
+        day = datedict["day"]
+        rest = datedict["rest"]
+        rmaj = datedict["rmaj"]
+        rmin = datedict["rmin"]
+        rpatch = datedict["rpatch"]
+        ttype = datedict["type"]
+        return year, month, day, rest, rmaj, rmin, rpatch, ttype
+
+    def _get_sort_tag(self, datedict):
+        year = datedict["year"]
+        month = datedict["month"]
+        day = datedict["day"]
+        rest = datedict["rest"]
+        sort_tag = "0000-00-00-0"  # As early as possible
+        # If we have "rest", we will sort that alphabetically.  We will
+        #  equate no-rest with "zzzzzz" because we want to pretend that
+        #  uncategorized builds come _last_ (e.g. "-rc1" versus no tag)
+        if not rest:
+            rest = "zzzzzz"
+        if year and month and day:
+            # This should be everything but releases, because _describe_tags
+            #  resolves weeks to days.
+            sort_tag = "{}-{}-{}-{}".format(year, month, day, rest)
+        else:
+            if datedict["type"] == "release":
+                # Let's pretend that r20 came out July 1, 2020, and that
+                #  every six months we have a new one.  Each minor version
+                #  can be a month, each patch version can be a day.
+                # Let's just pray that we never have more than 6 minor
+                #  versions and 28 patches
+                rmaj = datedict["rmaj"]
+                rmin = datedict["rmin"]
+                rpatch = datedict["rpatch"]
+                major = 0
+                minor = 0
+                patch = 0
+                if rmaj:
+                    major = int(rmaj)
+                if rmin:
+                    minor = int(rmin)
+                    if minor > 6:
+                        minor = 6  # Least of our worries?
+                if rpatch:
+                    patch = int(patch)
+                    if patch > 28:
+                        patch = 28  # See above.
+                offset = math.ceil(major / 2)
+                year = 2010 + offset
+                month = minor
+                if ((major % 2) == 0):
+                    month = month+6
+                day = patch
+                sort_tag = "{}-{}-{}-{}".format(year, month, day, rest)
+            else:
+                if rest and rest != "zzzzzz":
+                    # Broken tag.  No date.  So it's taken to be super-early.
+                    #  Sorting is probably pointless.
+                    sort_tag = "0000-00-00-{}".format(rest)
+        return sort_tag
+
+    def _translate_week(self, year, week):
+        # Conventionally, our weeklies are produced Saturday, so that's
+        #  Day 6 of a week.
+        # Let's assume the weeks are ISO week dates, but if they're not,
+        #  the strptime format needs to change to '%Y-W%W-%w'.
+        #  The year number might change around the end of the year: day 6
+        #   of week 52 could be in the next year.
+        s_fmt = '%G-W%V-%u'
+        d_str = '{}-W{}-6'.format(year, week)
+        ddate = datetime.datetime.strptime(d_str, s_fmt)
+        year = '{:04d}'.format(ddate.year)
+        month = '{:02d}'.format(ddate.month)
+        day = '{:02d}'.format(ddate.day)
+        return year, month, day
 
     def resolve_tag(self, tag):
         """Resolve a tag (used for "recommended" or "latest*").
@@ -344,6 +484,7 @@ class ScanRepo(object):
             self._update_results_map(results)
             self._map_names_to_manifests()
             self._reduce_results()
+            self.last_scan = datetime.datetime.utcnow()
 
     def _update_results_map(self, results):
         with start_action(action_type="_update_results_map"):
@@ -469,9 +610,11 @@ class ScanRepo(object):
             reduced_results = {}
             for res in results:
                 vname = res["name"]
+                ld, datedict = self._describe_tag(vname)
                 reduced_results[vname] = {
                     "name": vname,
-                    "description": self._describe_tag(vname),
+                    "description": ld,
+                    "sort_tag": datedict["sort_tag"]
                 }
                 entry = reduced_results[vname]
                 manifest = self._name_to_manifest.get(vname)
@@ -532,9 +675,11 @@ class ScanRepo(object):
         with start_action(action_type="_authenticate_to_repo"):
             self.logger.warning("Authentication Required.")
             self.logger.warning("Headers: {}".format(headers))
-            magicheader = headers.get('WWW-Authenticate', headers.get('Www-Authenticate', None))
+            magicheader = headers.get(
+                'WWW-Authenticate', headers.get('Www-Authenticate', None))
             if magicheader.startswith("BASIC"):
-                auth_hdr = base64.b64encode('{}:{}'.format(self.username, self.password).encode('ascii'))
+                auth_hdr = base64.b64encode('{}:{}'.format(
+                    self.username, self.password).encode('ascii'))
                 self.logger.info("Auth header now: {}".format(auth_hdr))
                 return {"Authorization": "Basic " + auth_hdr.decode()}
             if magicheader.startswith("Bearer "):

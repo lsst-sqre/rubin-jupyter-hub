@@ -22,7 +22,6 @@ class SingletonScanner(ScanRepo, metaclass=Singleton):
         super().__init__(**kwargs)
         self.min_refresh_time = min_refresh_time
         self.max_cache_age = max_cache_age
-        self.last_updated = datetime.datetime(1970, 1, 1)  # The Epoch
         self.scanning = False
         self.lock = threading.RLock()
         if max_cache_age < min_refresh_time:
@@ -67,23 +66,22 @@ class SingletonScanner(ScanRepo, metaclass=Singleton):
             now = datetime.datetime.utcnow()
             mt = self.min_refresh_time
             min_delay = datetime.timedelta(seconds=mt)
-            if now - self.last_updated < min_delay:
+            if now - self.last_scan < min_delay:
                 self.logger.warning("%ds not elapsed; not rescanning." % mt)
                 self.scanning = False
                 return
             self.logger.info("Rescanning.")
             with self.lock:
                 super().scan()
-                self.last_updated = now
                 self.scanning = False
 
     def _scan_if_needed(self):
         with start_action(action_type="_scan_if_needed"):
             now = datetime.datetime.utcnow()
             max_age = datetime.timedelta(seconds=self.max_cache_age)
-            last_updated = self.last_updated
-            if (now - last_updated) > max_age:
+            if (now - self.last_scan) > max_age:
                 self.logger.info("Scan data has expired.")
+                self.data = None
                 if self.scanning:
                     self.logger.info("Waiting for scan results.")
                     count = 0
