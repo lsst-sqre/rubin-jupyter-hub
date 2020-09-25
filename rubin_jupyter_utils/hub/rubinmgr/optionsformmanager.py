@@ -116,7 +116,7 @@ class RubinOptionsFormManager(LoggableChild):
             max_delay = cfg.max_scan_delay
             delay = 0
             epoch = datetime.datetime(1970, 1, 1)
-            while scanner.last_updated == epoch:
+            while scanner.last_scan == epoch:
                 self.log.info(
                     (
                         "Scan results not available yet; sleeping "
