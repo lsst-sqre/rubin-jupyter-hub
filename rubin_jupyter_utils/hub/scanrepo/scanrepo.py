@@ -262,8 +262,6 @@ class ScanRepo(object):
                 minor = ver.minor
                 patch = ver.patch
                 ld = "Experimental " + ld
-                if rest:
-                    ld = ld + "_" + rest
         else:  # old-style tag
             # We don't have any more dailies with the old-style tag, and
             #  very shortly we won't have any more weeklies (as long as the
@@ -494,7 +492,6 @@ class ScanRepo(object):
                     # Update results map with hash
                     results[tag]["hash"] = namemap[tag]["hash"]
                     continue
-                self.logger.debug("Adding {} to check_names.".format(tag))
                 check_names.append(tag)
             if not check_names:
                 self.logger.debug("All images have current hash.")
@@ -543,17 +540,24 @@ class ScanRepo(object):
                     "application/vnd.docker.distribution" + ".manifest.v2+json"
                 )
             }
+            # Parallelize this!
             if authtok:
                 headers.update({"Authorization": "Bearer {}".format(authtok)})
-                for name in check_names:
-                    resp = requests.head(
-                        baseurl + "manifests/{}".format(name), headers=headers
-                    )
-                    ihash = resp.headers["Docker-Content-Digest"]
-                    namemap[name]["hash"] = ihash
-                    results[name]["hash"] = ihash
+            for name in check_names:
+                ihash = self._get_tag_hash(headers, baseurl, name)
+                namemap[name]["hash"] = ihash
+                results[name]["hash"] = ihash
             self._name_to_manifest.update(namemap)
             self._writecachefile()
+
+    def _get_tag_hash(self, headers, baseurl, name):
+        self.logger.debug(
+            "Making request to {} for tag '{}'".format(baseurl, name))
+        resp = requests.head(
+            baseurl + "manifests/{}".format(name), headers=headers
+        )
+        ihash = resp.headers["Docker-Content-Digest"]
+        return ihash
 
     def _writecachefile(self):
         with start_action(action_type="_writecachefile"):

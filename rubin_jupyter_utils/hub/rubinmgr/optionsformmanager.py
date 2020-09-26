@@ -129,6 +129,9 @@ class RubinOptionsFormManager(LoggableChild):
             now = datetime.datetime.utcnow()
             delta = datetime.timedelta(seconds=max_delay_interval)
             while (scanner.last_scan + delta) < now:
+                if not scanner.scanning:
+                    scanner.scan_if_needed()
+                    continue
                 self.log.info(
                     (
                         "Fresh scan results not available yet; sleeping "
