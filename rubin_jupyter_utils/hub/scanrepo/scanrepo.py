@@ -114,7 +114,7 @@ class ScanRepo(object):
                 tag = c["name"]
                 ld = c.get("description")
                 if not ld:
-                    ld, datedict = self._describe_tag(tag)
+                    ld, _, _, _ = self._describe_tag(tag)
                 ldescs.append(ld)
             ls = [self.owner + "/" + self.name + ":" + x["name"] for x in cs]
             return ls, ldescs
