@@ -38,18 +38,12 @@ class Reaper(SingletonScanner):
             "experimental": []
         }  # We don't need releases since we never reap them.
         with start_action(action_type="_categorize_tags"):
-            tags = self.get_all_tags()  # Should wait for initial scan
-            sortable_tags = [(x, self._describe_tag(x)[1]) for x in tags]
-            sortable_tags.sort(
-                key=lambda x: x[1][self.sort_field], reverse=True)
-            sorted_tags = [x[0] for x in sortable_tags]
-            for t in sorted_tags:
-                if t.startswith("w"):
-                    self._categorized_tags["weekly"].append(t)
-                elif t.startswith("d"):
-                    self._categorized_tags["daily"].append(t)
-                elif t.startswith("exp"):
-                    self._categorized_tags["experimental"].append(t)
+            rresults = self._reduced_results  # already sorted
+            for res in rresults:
+                rt = res['type']
+                if rt in ["weekly", "daily", "experimental"]:
+                    self.logger.debug("Found image {}".format(res))
+                    self._categorized_tags[rt].append(res["name"])
 
     def _select_victims(self):
         with start_action(action_type="_select victims"):
