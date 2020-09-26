@@ -65,9 +65,10 @@ class SingletonScanner(ScanRepo, metaclass=Singleton):
             now = datetime.datetime.utcnow()
             mt = self.min_refresh_time
             min_delay = datetime.timedelta(seconds=mt)
-            if ((now - self.last_scan < min_delay) and self._results):
+            if (now - self.last_scan < min_delay) and self._results:
                 self.logger.warning(
-                    "{}s not elapsed; have results; no rescan.".format(mt))
+                    "{}s not elapsed; have results; no rescan.".format(mt)
+                )
                 self.scanning = False
                 return
             self.logger.info("Rescanning.")
@@ -102,7 +103,8 @@ class SingletonScanner(ScanRepo, metaclass=Singleton):
             else:
                 secs = scan_age.total_seconds()
                 self.logger.debug(
-                    "Scan data is fresh ({}s); no new scan.".format(secs))
+                    "Scan data is fresh ({}s); no new scan.".format(secs)
+                )
                 self.process_resultmap()
 
     def get_data(self):

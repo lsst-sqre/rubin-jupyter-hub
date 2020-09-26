@@ -145,7 +145,8 @@ class ScanRepo(object):
             #  cachefile
             self.logger.debug("Updating last_scan from cachefile mtime.")
             self.last_scan = datetime.datetime.fromtimestamp(
-                os.path.getmtime(fn))
+                os.path.getmtime(fn)
+            )
 
     def _describe_tag(self, tag):
         # This method started as a way to extract a human-friendly description
@@ -210,8 +211,7 @@ class ScanRepo(object):
                 ld = tag[0].upper() + tag[1:]
                 restag = self.resolve_tag(tag)
                 if restag:
-                    res_ld, res_ver, _, res_rest = self._describe_tag(
-                        restag)
+                    res_ld, res_ver, _, res_rest = self._describe_tag(restag)
                     major = res_ver.major
                     minor = res_ver.minor
                     patch = res_ver.patch
@@ -319,8 +319,8 @@ class ScanRepo(object):
         #
         # The year number might change around the end of the year: day 6
         #   of week 52 could *really* be in the next year.
-        s_fmt = '%G-W%V-%u'
-        d_str = '{}-W{}-6'.format(year, week)  # These are strings
+        s_fmt = "%G-W%V-%u"
+        d_str = "{}-W{}-6".format(year, week)  # These are strings
         ddate = datetime.datetime.strptime(d_str, s_fmt)
         return ddate.year, ddate.month, ddate.day  # These are integers
 
@@ -546,7 +546,8 @@ class ScanRepo(object):
 
     def _get_tag_hash(self, headers, baseurl, name):
         self.logger.debug(
-            "Making request to {} for tag '{}'".format(baseurl, name))
+            "Making request to {} for tag '{}'".format(baseurl, name)
+        )
         resp = requests.head(
             baseurl + "manifests/{}".format(name), headers=headers
         )
@@ -593,7 +594,7 @@ class ScanRepo(object):
                     "description": ld,
                     "version": ver,
                     "type": ttype,
-                    "rest": rest
+                    "rest": rest,
                 }
                 manifest = self._name_to_manifest.get(vname)
                 if manifest:
@@ -602,7 +603,7 @@ class ScanRepo(object):
                     entry["hash"] = None
                 reduced_results.append(entry)
             # Sort list of reduced_results by semver
-            reduced_results.sort(key=lambda x: x['version'], reverse=True)
+            reduced_results.sort(key=lambda x: x["version"], reverse=True)
             for res in reduced_results:
                 rtype = res["type"]
                 if rtype == "release":
@@ -651,7 +652,7 @@ class ScanRepo(object):
                 ict = imap[ikey]["count"]
                 if ict:
                     r[ikey] = displayorder[idx][:ict]
-            self._all_tags = [x['name'] for x in reduced_results]
+            self._all_tags = [x["name"] for x in reduced_results]
             self._reduced_results = reduced_results
             self.data = r
 
@@ -662,9 +663,9 @@ class ScanRepo(object):
         show_rc = True
         pruned = []
         for res in rresults:
-            if res['type'] != 'release':
+            if res["type"] != "release":
                 continue
-            ver = res['version']
+            ver = res["version"]
             if ver.prerelease:
                 if show_rc:  # We haven't seen a non-prerelease
                     pruned.append(res)
@@ -678,10 +679,14 @@ class ScanRepo(object):
             self.logger.warning("Authentication Required.")
             self.logger.warning("Headers: {}".format(headers))
             magicheader = headers.get(
-                'WWW-Authenticate', headers.get('Www-Authenticate', None))
+                "WWW-Authenticate", headers.get("Www-Authenticate", None)
+            )
             if magicheader.startswith("BASIC"):
-                auth_hdr = base64.b64encode('{}:{}'.format(
-                    self.username, self.password).encode('ascii'))
+                auth_hdr = base64.b64encode(
+                    "{}:{}".format(self.username, self.password).encode(
+                        "ascii"
+                    )
+                )
                 self.logger.info("Auth header now: {}".format(auth_hdr))
                 return {"Authorization": "Basic " + auth_hdr.decode()}
             if magicheader.startswith("Bearer "):
@@ -692,8 +697,12 @@ class ScanRepo(object):
                     kk = il[0]
                     vv = il[1].replace('"', "")
                     hd[kk] = vv
-                if (not hd or "realm" not in hd or "service" not in hd
-                        or "scope" not in hd):
+                if (
+                    not hd
+                    or "realm" not in hd
+                    or "service" not in hd
+                    or "scope" not in hd
+                ):
                     return None
                 endpoint = hd["realm"]
                 del hd["realm"]
@@ -706,13 +715,17 @@ class ScanRepo(object):
                     auth = (r_user, r_pw)
                     self.logger.warning("Added Basic Auth credentials")
                 headers = {
-                    "Accept": ("application/vnd.docker.distribution." +
-                               "manifest.v2+json")
+                    "Accept": (
+                        "application/vnd.docker.distribution."
+                        + "manifest.v2+json"
+                    )
                 }
                 self.logger.warning(
-                    "Requesting auth scope {}".format(hd["scope"]))
-                tresp = requests.get(endpoint, headers=headers, params=hd,
-                                     json=True, auth=auth)
+                    "Requesting auth scope {}".format(hd["scope"])
+                )
+                tresp = requests.get(
+                    endpoint, headers=headers, params=hd, json=True, auth=auth
+                )
                 jresp = tresp.json()
                 authtok = jresp.get("token")
                 if authtok:

@@ -7,6 +7,7 @@ from . import SingletonScanner
 class Reaper(SingletonScanner):
     """Class to allow implementation of image retention policy.
     """
+
     # We don't need to categorize releases since we never delete any of
     #  them.
 
@@ -34,12 +35,12 @@ class Reaper(SingletonScanner):
         self._categorized_tags = {
             "weekly": [],
             "daily": [],
-            "experimental": []
+            "experimental": [],
         }  # We don't need releases since we never reap them.
         with start_action(action_type="_categorize_tags"):
             rresults = self._reduced_results  # already sorted
             for res in rresults:
-                rt = res['type']
+                rt = res["type"]
                 if rt in ["weekly", "daily", "experimental"]:
                     self.logger.debug("Found image {}".format(res))
                     self._categorized_tags[rt].append(res["name"])
@@ -49,9 +50,9 @@ class Reaper(SingletonScanner):
             self._categorize_tags()
             reaptags = []
             sc = self._categorized_tags
-            reaptags.extend(sc["experimental"][self.keep_experimentals:])
-            reaptags.extend(sc["daily"][self.keep_dailies:])
-            reaptags.extend(sc["weekly"][self.keep_weeklies:])
+            reaptags.extend(sc["experimental"][self.keep_experimentals :])
+            reaptags.extend(sc["daily"][self.keep_dailies :])
+            reaptags.extend(sc["weekly"][self.keep_weeklies :])
             reapable = {}
             for r in reaptags:
                 reapable[r] = self._results_map[r]["hash"]
