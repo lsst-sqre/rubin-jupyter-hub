@@ -155,15 +155,6 @@ def parse_args(
                 type=bool,
                 default=True,
             )
-        if component == "scanner":
-            parser.add_argument(
-                "-j",
-                "--json",
-                help="Emit results as JSON, "
-                + " not sourceable shell fragment [False]",
-                action="store_true",
-                default=False,
-            )
         if component == "prepuller":
             parser.add_argument(
                 "--no-scan",

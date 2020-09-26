@@ -2,7 +2,6 @@ import base64
 import datetime
 import json
 import logging
-import math
 import os
 import re
 import requests
@@ -32,7 +31,6 @@ class ScanRepo(object):
         weeklies=2,
         releases=1,
         recommended=True,
-        json=False,
         port=None,
         cachefile=None,
         insecure=False,
@@ -63,7 +61,6 @@ class ScanRepo(object):
         self.weeklies = weeklies
         self.releases = releases
         self.recommended = recommended
-        self.json = json
         protocol = "https"
         self.insecure = insecure
         if self.insecure:
@@ -181,6 +178,10 @@ class ScanRepo(object):
         #  like that, we can make their major version 9999, and tack the
         #  rest on after that.
         #
+        # For experimental and resolved ("recommended" or "latest") tags
+        #  we call this recursively, and fix up the descriptions and
+        #  version components when we return from the inner call.
+        #
         # New-style tags (since early 2019) have underscores separating
         #  components.
         #
@@ -193,7 +194,6 @@ class ScanRepo(object):
         major = 0
         minor = 0
         patch = 0
-        prerelease = None  # (only used for releases)
         rest = None
         if tag.find("_") != -1:  # New-style tag
             components = tag.split("_")
@@ -223,7 +223,8 @@ class ScanRepo(object):
                 major = int(components[1])
                 minor = int(components[2])
                 if len(components) > 3:
-                    patch = int(components[3])  # this may break on rcs?
+                    patch = int(components[3])  # This will need work if
+                    # we ever get "r_22_0_rc1" rather than "r_22_0_0_rc1"
                 if len(components) > 4:
                     rest = "_".join(components[4:])
                     if rest.startswith("rc"):  # Special-cased
@@ -312,14 +313,16 @@ class ScanRepo(object):
     def _translate_week(self, year, week):
         # Conventionally, our weeklies are produced Saturday, so that's
         #  Day 6 of a week.
+        #
         # Let's assume the weeks are ISO week dates, but if they're not,
-        #  the strptime format needs to change to '%Y-W%W-%w'.
-        #  The year number might change around the end of the year: day 6
-        #   of week 52 could be in the next year.
+        #  the strptime s_ftm needs to change to '%Y-W%W-%w'.
+        #
+        # The year number might change around the end of the year: day 6
+        #   of week 52 could *really* be in the next year.
         s_fmt = '%G-W%V-%u'
-        d_str = '{}-W{}-6'.format(year, week)
+        d_str = '{}-W{}-6'.format(year, week)  # These are strings
         ddate = datetime.datetime.strptime(d_str, s_fmt)
-        return ddate.year, ddate.month, ddate.day
+        return ddate.year, ddate.month, ddate.day  # These are integers
 
     def resolve_tag(self, tag):
         """Resolve a tag (used for "recommended" or "latest*").
@@ -375,16 +378,7 @@ class ScanRepo(object):
         """Print the tag data.
         """
         with start_action(action_type="report"):
-            if self.json:
-                print(self._data_to_json())
-            else:
-                ls, ldescs = self.extract_image_info()
-                ldstr = ",".join(ldescs)
-                lstr = ",".join(ls)
-                print("# Environment variables for Jupyter Lab containers")
-                print("LAB_CONTAINER_NAMES='%s'" % lstr)
-                print("LAB_CONTAINER_DESCS='%s'" % ldstr)
-                print("export LAB_CONTAINER_NAMES LAB_CONTAINER_DESCS")
+            print(self._data_to_json())
 
     def get_data(self):
         """Return the tag data.

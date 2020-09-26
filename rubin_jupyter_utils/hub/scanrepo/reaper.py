@@ -1,4 +1,3 @@
-import datetime
 import os
 import requests
 from eliot import start_action

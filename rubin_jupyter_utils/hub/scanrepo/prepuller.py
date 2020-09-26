@@ -1,5 +1,3 @@
-import copy
-import datetime
 import json
 import logging
 import os
@@ -125,7 +123,6 @@ class Prepuller(object):
                     releases=self.args.releases,
                     experimentals=self.args.experimentals,
                     recommended=self.args.recommended,
-                    json=True,
                     insecure=self.args.insecure,
                     sort_field=self.args.sort,
                     cachefile=self.cachefile,
