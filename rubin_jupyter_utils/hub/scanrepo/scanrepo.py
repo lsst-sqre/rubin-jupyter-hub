@@ -73,6 +73,7 @@ class ScanRepo(object):
         if port:
             exthost += ":" + str(port)
             reghost += ":" + str(port)
+        self.reghost = reghost
         self.cachefile = cachefile
         if self.cachefile:
             self._read_cachefile()
@@ -120,7 +121,8 @@ class ScanRepo(object):
                 if not ld:
                     ld, _, _, _ = self._describe_tag(tag)
                 ldescs.append(ld)
-            ls = [self.owner + "/" + self.name + ":" + x["name"] for x in cs]
+            ls = [self.reghost + "/" + self.owner + "/" +
+                  self.name + ":" + x["name"] for x in cs]
             return ls, ldescs
 
     def _read_cachefile(self):
