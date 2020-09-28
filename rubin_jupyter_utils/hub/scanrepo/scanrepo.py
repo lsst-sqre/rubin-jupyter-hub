@@ -1,4 +1,5 @@
 import base64
+import concurrent.futures
 import datetime
 import json
 import logging
@@ -6,6 +7,7 @@ import os
 import re
 import requests
 import semver
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -547,13 +549,33 @@ class ScanRepo(object):
                     "application/vnd.docker.distribution" + ".manifest.v2+json"
                 )
             }
-            # Parallelize this!
             if authtok:
                 headers.update({"Authorization": "Bearer {}".format(authtok)})
-            for name in check_names:
-                ihash = self._get_tag_hash(headers, baseurl, name)
-                namemap[name]["hash"] = ihash
-                results[name]["hash"] = ihash
+            tag_futures = {}
+            with concurrent.futures.ThreadPoolExecutor(max_workers=30) as xo:
+                for name in check_names:
+                    tag_futures[name] = xo.submit(self._get_tag_hash,
+                                                  headers, baseurl, name)
+                timeout = 120
+                i = 0
+                while True:
+                    for name in check_names:
+                        if name in tag_futures:
+                            fut = tag_futures[name]
+                            if fut.done():
+                                ihash = fut.result(timeout=1)
+                                self.logger.debug(
+                                    "Got tag for {}".format(name))
+                                namemap[name]["hash"] = ihash
+                                results[name]["hash"] = ihash
+                                del tag_futures[name]
+                    if not tag_futures:  # We have consumed them all
+                        break
+                    i = i+1
+                    if i > timeout:
+                        raise RuntimeError(
+                            "tag check didn't complete in {}s".format(i))
+                    time.sleep(1)
             self._name_to_manifest.update(namemap)
             self._writecachefile()
 

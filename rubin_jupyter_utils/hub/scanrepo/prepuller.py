@@ -158,9 +158,7 @@ class Prepuller(object):
                             if self.args.port:
                                 exhost += ":" + self.args.port
                         if exhost == "hub.docker.com":
-                            # We could change it to "index.docker.io" but
-                            #  leaving it empty works too.
-                            exhost = ""
+                            exhost = "registry.hub.docker.com"
                             if exhost and exhost[-1] != "/":
                                 exhost += "/"
                             scan_imgs.append(

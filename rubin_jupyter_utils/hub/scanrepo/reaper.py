@@ -45,7 +45,8 @@ class Reaper(SingletonScanner):
                     self.logger.debug("Found image {}".format(res))
                     self._categorized_tags[rt].append(res["name"])
             _, old_prereleases = self._prune_releases()
-            self._categorized_tags["obsolete_prereleases"] = old_prereleases
+            self._categorized_tags["obsolete_prereleases"] = [
+                x["name"] for x in old_prereleases]
 
     def _select_victims(self):
         with start_action(action_type="_select victims"):
