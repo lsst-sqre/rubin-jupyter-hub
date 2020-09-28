@@ -104,13 +104,16 @@ class ScanRepo(object):
         """Build image name list and image description list.
         """
         with start_action(action_type="extract_image_info"):
+
             cs = []
             if self.recommended and "recommended" in self.data:
                 cs.extend(self.data["recommended"])
+            self.logger.debug(cs)
             for k in ["experimental", "daily", "weekly", "release"]:
                 if k in self.data:
                     cs.extend(self.data[k])
             ldescs = []
+            self.logger.debug(cs)
             for c in cs:
                 tag = c["name"]
                 ld = c.get("description")
@@ -649,7 +652,7 @@ class ScanRepo(object):
             resultmap = {}
             if self.recommended:
                 if c_images:
-                    resultmap['recommended'] = c_images[0]
+                    resultmap['recommended'] = [c_images[0]]
             if self.experimentals:
                 resultmap['experimental'] = e_images[:self.experimentals]
             if self.dailies:
