@@ -47,7 +47,7 @@ class Reaper(SingletonScanner):
                 if rt in ["weekly", "daily", "experimental"]:
                     self.logger.debug("Found image {}".format(res))
                     self._categorized_tags[rt].append(res["name"])
-            _, old_prereleases = self._prune_releases(rresults)
+            _, old_prereleases = self._prune_releases()
             self._categorized_tags["obsolete_prereleases"] = old_prereleases
 
     def _select_victims(self):

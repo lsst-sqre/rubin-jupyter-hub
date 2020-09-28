@@ -114,12 +114,12 @@ class SingletonScanner(ScanRepo, metaclass=Singleton):
             self.scan_if_needed()
             return self.data
 
-    def get_all_tags(self):
+    def get_display_tags(self):
         """Return all tags in repo.
         """
-        with start_action(action_type="get_all_tags"):
+        with start_action(action_type="get_display_tags"):
             self.scan_if_needed()
-            return self._all_tags
+            return self.display_tags
 
     def get_all_scan_results(self):
         """Return results from repository scan as dict.

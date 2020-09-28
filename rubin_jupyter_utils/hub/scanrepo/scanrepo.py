@@ -39,6 +39,7 @@ class ScanRepo(object):
         password=None,
     ):
         self.data = {}
+        self.display_tags = []
         self._results = None
         self._results_map = {}
         self._name_to_manifest = {}
@@ -392,6 +393,13 @@ class ScanRepo(object):
         with start_action(action_type="get_all_tags"):
             return self._all_tags
 
+    def get_display_tags(self):
+        """Return all tags in the repository, sorted by category and then
+        semver.
+        """
+        with start_action(action_type="get_display_tags"):
+            return self._display_tags
+
     def _get_url(self, url, headers, **kwargs):
         # Too noisy to log.
         params = None
@@ -568,23 +576,6 @@ class ScanRepo(object):
     def _reduce_results(self):
         with start_action(action_type="_reduce_results"):
             results = self._results
-            # Recommended
-            # Release/Weekly/Daily
-            # Experimental/Latest/Other
-            c_candidates = []
-            r_candidates = []
-            w_candidates = []
-            d_candidates = []
-            e_candidates = []
-            l_candidates = []
-            o_candidates = []
-            # This is the order for tags to appear in menu:
-            displayorder = []
-            if self.recommended:
-                displayorder.extend([c_candidates])
-            displayorder.extend(
-                [e_candidates, d_candidates, w_candidates, r_candidates]
-            )
             reduced_results = []
             for res in results:
                 vname = res["name"]
@@ -604,63 +595,80 @@ class ScanRepo(object):
                 reduced_results.append(entry)
             # Sort list of reduced_results by semver
             reduced_results.sort(key=lambda x: x["version"], reverse=True)
-            for res in reduced_results:
+            self._all_tags = [x["name"] for x in reduced_results]
+            self._reduced_results = reduced_results
+            self._create_display_tags()
+
+    def _create_display_tags(self):
+        """Create the displayed list of images, and all tags sorted
+        by category and semver within category.
+        """
+        with start_action(action_type="_create_display_tags"):
+            #
+            # The order in which tags should be presented are:
+            #
+            # Recommended -- only if self.recommended is on
+            # Latest (don't display separately, at least not for now)
+            # Experimental
+            # Daily
+            # Weekly
+            # Release (don't prune rcs for all-tags)
+            # Other
+            c_images = []
+            l_images = []
+            e_images = []
+            d_images = []
+            w_images = []
+            r_images = []
+            o_images = []
+            all_r_images = []
+            rresults = self._reduced_results
+            for res in rresults:
                 rtype = res["type"]
                 if rtype == "release":
-                    pass  # Releases are handled specially; see below.
+                    all_r_images.append(res)
                 elif rtype == "weekly":
-                    w_candidates.append(res)
+                    w_images.append(res)
                 elif rtype == "daily":
-                    d_candidates.append(res)
+                    d_images.append(res)
                 elif rtype == "experimental":
-                    e_candidates.append(res)
+                    e_images.append(res)
                 elif rtype == "resolved":
                     rname = res["name"]
                     if rname.startswith("latest"):
-                        l_candidates.append(res)
+                        l_images.append(res)
                     elif rname.startswith("recommended"):
-                        c_candidates.append(res)
+                        c_images.append(res)
                     else:
-                        o_candidates.append(res)
+                        o_images.append(res)
                 else:
-                    o_candidates.append(res)
-            r = {}
-            # Index corresponds to order in displayorder: in order,
-            #  experimentals, dailies, weeklies, releases.
-            #
+                    o_images.append(res)
             # Releases are special: see _prune_releases
-            pruned_releases, _ = self._prune_releases(reduced_results)
-            r_candidates.extend(pruned_releases)
-
-            idxbase = 0
-            imap = {}
+            pruned_releases, _ = self._prune_releases()
+            r_images.extend(pruned_releases)
+            resultmap = {}
             if self.recommended:
-                imap.update({"recommended": {"index": idxbase, "count": 1}})
-                idxbase = 1
-            imap.update(
-                {
-                    "experimental": {
-                        "index": idxbase,
-                        "count": self.experimentals,
-                    },
-                    "daily": {"index": idxbase + 1, "count": self.dailies},
-                    "weekly": {"index": idxbase + 2, "count": self.weeklies},
-                    "release": {"index": idxbase + 3, "count": self.releases},
-                }
-            )
-            for ikey in list(imap.keys()):
-                idx = imap[ikey]["index"]
-                ict = imap[ikey]["count"]
-                if ict:
-                    r[ikey] = displayorder[idx][:ict]
-            self._all_tags = [x["name"] for x in reduced_results]
-            self._reduced_results = reduced_results
-            self.data = r
+                if c_images:
+                    resultmap['recommended'] = c_images[0]
+            if self.experimentals:
+                resultmap['experimental'] = e_images[:self.experimentals]
+            if self.dailies:
+                resultmap['daily'] = d_images[:self.dailies]
+            if self.weeklies:
+                resultmap['weekly'] = w_images[:self.weeklies]
+            if self.releases:
+                resultmap['release'] = r_images[:self.releases]
+            self.data = resultmap
+            self.display_tags = []
+            for imglist in [e_images, d_images, w_images,
+                            all_r_images, o_images]:
+                self.display_tags.extend([x["name"] for x in imglist])
 
-    def _prune_releases(self, rresults):
+    def _prune_releases(self):
         # How are releases special?  We never want to display release
         #  candidates *unless* they are newer (that is, have a higher
         #  semantic version number) than all of the *real* releases.
+        rresults = self._reduced_results
         show_rc = True
         pruned = []
         old_prereleases = []  # We will use this in the reaper

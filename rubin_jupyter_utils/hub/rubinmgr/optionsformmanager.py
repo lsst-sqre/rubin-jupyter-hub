@@ -69,7 +69,7 @@ class RubinOptionsFormManager(LoggableChild):
                 desclist.append({"name": img, "desc": ldescs[idx]})
             colon = lnames[0].find(":")
             custtag = lnames[0][:colon] + ":__custom"
-            all_tags = scanner.get_all_tags()
+            display_tags = scanner.get_display_tags()
             now = datetime.datetime.now()
             nowstr = now.ctime()
             if not now.tzinfo:
@@ -96,7 +96,7 @@ class RubinOptionsFormManager(LoggableChild):
             optform = template.render(
                 defaultsize=defaultsize,
                 desclist=desclist,
-                all_tags=all_tags,
+                all_tags=display_tags,
                 custtag=custtag,
                 sizelist=list(self.sizemap.values()),
                 nowstr=nowstr,
