@@ -110,7 +110,7 @@ class ScanRepo(object):
             if self.recommended and "recommended" in self.data:
                 cs.extend(self.data["recommended"])
             self.logger.debug(cs)
-            for k in ["experimental", "daily", "weekly", "release"]:
+            for k in ["weekly", "daily", "experimental", "release"]:
                 if k in self.data:
                     cs.extend(self.data[k])
             ldescs = []
