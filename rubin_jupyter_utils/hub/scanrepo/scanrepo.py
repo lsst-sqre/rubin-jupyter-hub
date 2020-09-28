@@ -629,7 +629,8 @@ class ScanRepo(object):
             #  experimentals, dailies, weeklies, releases.
             #
             # Releases are special: see _prune_releases
-            r_candidates.extend(self._prune_releases(reduced_results))
+            pruned_releases, _ = self._prune_releases(reduced_results)
+            r_candidates.extend(pruned_releases)
 
             idxbase = 0
             imap = {}
@@ -662,6 +663,7 @@ class ScanRepo(object):
         #  semantic version number) than all of the *real* releases.
         show_rc = True
         pruned = []
+        old_prereleases = []  # We will use this in the reaper
         for res in rresults:
             if res["type"] != "release":
                 continue
@@ -669,10 +671,12 @@ class ScanRepo(object):
             if ver.prerelease:
                 if show_rc:  # We haven't seen a non-prerelease
                     pruned.append(res)
+                else:
+                    old_prereleases.append(res)
             else:
                 show_rc = False  # But now we have, so stop showing them
                 pruned.append(res)
-        return pruned
+        return pruned, old_prereleases
 
     def _authenticate_to_repo(self, headers):
         with start_action(action_type="_authenticate_to_repo"):

@@ -10,6 +10,9 @@ class Reaper(SingletonScanner):
 
     # We don't need to categorize releases since we never delete any of
     #  them.
+    #
+    # TODO: not sure that's true--we may want to prune any rc prerelease
+    #  once the corresponding release has happened.
 
     def __init__(self, *args, **kwargs):
         self.keep_experimentals = kwargs.pop("keep_experimentals", 10)
@@ -36,7 +39,7 @@ class Reaper(SingletonScanner):
             "weekly": [],
             "daily": [],
             "experimental": [],
-        }  # We don't need releases since we never reap them.
+        }
         with start_action(action_type="_categorize_tags"):
             rresults = self._reduced_results  # already sorted
             for res in rresults:
@@ -44,15 +47,20 @@ class Reaper(SingletonScanner):
                 if rt in ["weekly", "daily", "experimental"]:
                     self.logger.debug("Found image {}".format(res))
                     self._categorized_tags[rt].append(res["name"])
+            _, old_prereleases = self._prune_releases(rresults)
+            self._categorized_tags["obsolete_prereleases"] = old_prereleases
 
     def _select_victims(self):
         with start_action(action_type="_select victims"):
             self._categorize_tags()
             reaptags = []
             sc = self._categorized_tags
-            reaptags.extend(sc["experimental"][self.keep_experimentals :])
-            reaptags.extend(sc["daily"][self.keep_dailies :])
-            reaptags.extend(sc["weekly"][self.keep_weeklies :])
+            reaptags.extend(sc["experimental"][self.keep_experimentals:])
+            reaptags.extend(sc["daily"][self.keep_dailies:])
+            reaptags.extend(sc["weekly"][self.keep_weeklies:])
+            # TODO -- if we want to delete release rc candidates once
+            #  released
+            # reaptags.extend(sc["obsolete_prereleases"])
             reapable = {}
             for r in reaptags:
                 reapable[r] = self._results_map[r]["hash"]
