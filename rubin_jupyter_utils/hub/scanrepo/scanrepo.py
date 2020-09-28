@@ -614,11 +614,12 @@ class ScanRepo(object):
             #
             # Recommended -- only if self.recommended is on
             # Latest (don't display separately, at least not for now)
-            # Experimental
-            # Daily
             # Weekly
+            # Daily
+            # Experimental
             # Release (don't prune rcs for all-tags)
-            # Other
+            # Other (should be empty in all circumstances--only in all-tags
+            #  if they exist at all, but if they do, something is wrong)
             c_images = []
             l_images = []
             e_images = []
@@ -655,17 +656,17 @@ class ScanRepo(object):
             if self.recommended:
                 if c_images:
                     resultmap['recommended'] = [c_images[0]]
+            if self.weeklies:
+                resultmap['weekly'] = w_images[:self.weeklies]
             if self.experimentals:
                 resultmap['experimental'] = e_images[:self.experimentals]
             if self.dailies:
                 resultmap['daily'] = d_images[:self.dailies]
-            if self.weeklies:
-                resultmap['weekly'] = w_images[:self.weeklies]
             if self.releases:
                 resultmap['release'] = r_images[:self.releases]
             self.data = resultmap
             self.display_tags = []
-            for imglist in [e_images, d_images, w_images,
+            for imglist in [w_images, d_images, e_images,
                             all_r_images, o_images]:
                 self.display_tags.extend([x["name"] for x in imglist])
 
