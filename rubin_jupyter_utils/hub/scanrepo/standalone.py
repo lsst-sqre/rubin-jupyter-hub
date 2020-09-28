@@ -17,7 +17,6 @@ def standalone():
         releases=args.releases,
         experimentals=args.experimentals,
         recommended=args.recommended,
-        json=args.json,
         insecure=args.insecure,
         sort_field=args.sort,
         cachefile=args.cachefile,

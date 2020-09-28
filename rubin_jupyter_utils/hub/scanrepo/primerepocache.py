@@ -4,7 +4,6 @@ from .singletonscanner import SingletonScanner
 def prime_repo_cache(cfg):
     scr = SingletonScanner(
         debug=cfg.debug,
-        json=True,
         host=cfg.lab_repo_host,
         owner=cfg.lab_repo_owner,
         name=cfg.lab_repo_name,

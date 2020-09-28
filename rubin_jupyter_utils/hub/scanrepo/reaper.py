@@ -1,4 +1,3 @@
-import datetime
 import os
 import requests
 from eliot import start_action
@@ -9,7 +8,6 @@ class Reaper(SingletonScanner):
     """Class to allow implementation of image retention policy.
     """
 
-    _categorized_tags = {"weekly": [], "daily": [], "experimental": []}
     # We don't need to categorize releases since we never delete any of
     #  them.
 
@@ -31,35 +29,34 @@ class Reaper(SingletonScanner):
         if self.registry_url.startswith("registry.hub.docker.com"):
             self.delete_tags = True
         self.reapable = {}
+        self._categorized_tags = {}
 
     def _categorize_tags(self):
+        self._categorized_tags = {
+            "weekly": [],
+            "daily": [],
+            "experimental": [],
+        }
         with start_action(action_type="_categorize_tags"):
-            tags = self.get_all_tags()  # Should wait for initial scan
-            for t in tags:
-                if t.startswith("w"):
-                    self._categorized_tags["weekly"].append(t)
-                elif t.startswith("d"):
-                    self._categorized_tags["daily"].append(t)
-                elif t.startswith("exp"):
-                    self._categorized_tags["experimental"].append(t)
-            for i in ["experimental", "daily", "weekly"]:
-                self._categorized_tags[i].sort(
-                    key=lambda tag: datetime.datetime.strptime(
-                        self._results_map[tag]["last_updated"].replace(
-                            "Z", "UTC"
-                        ),
-                        "%Y-%m-%dT%H:%M:%S.%f%Z",
-                    )
-                )
+            rresults = self._reduced_results  # already sorted
+            for res in rresults:
+                rt = res["type"]
+                if rt in ["weekly", "daily", "experimental"]:
+                    self.logger.debug("Found image {}".format(res))
+                    self._categorized_tags[rt].append(res["name"])
+            _, old_prereleases = self._prune_releases()
+            self._categorized_tags["obsolete_prereleases"] = [
+                x["name"] for x in old_prereleases]
 
     def _select_victims(self):
         with start_action(action_type="_select victims"):
             self._categorize_tags()
             reaptags = []
             sc = self._categorized_tags
-            reaptags.extend(sc["experimental"][: -(self.keep_experimentals)])
-            reaptags.extend(sc["daily"][: -(self.keep_dailies)])
-            reaptags.extend(sc["weekly"][: -(self.keep_weeklies)])
+            reaptags.extend(sc["experimental"][self.keep_experimentals:])
+            reaptags.extend(sc["daily"][self.keep_dailies:])
+            reaptags.extend(sc["weekly"][self.keep_weeklies:])
+            reaptags.extend(sc["obsolete_prereleases"])
             reapable = {}
             for r in reaptags:
                 reapable[r] = self._results_map[r]["hash"]

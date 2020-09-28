@@ -67,12 +67,12 @@ def parse_args(
             help="repository owner [{}]".format(lro),
             default=lro,
         )
-        parser.add_argument("--username",
-                            help="Docker username",
-                            default=cfg.lab_repo_username)
-        parser.add_argument("--password",
-                            help="Docker password",
-                            default=cfg.lab_repo_password)
+        parser.add_argument(
+            "--username", help="Docker username", default=cfg.lab_repo_username
+        )
+        parser.add_argument(
+            "--password", help="Docker password", default=cfg.lab_repo_password
+        )
         parser.add_argument(
             "-n",
             "--name",
@@ -154,15 +154,6 @@ def parse_args(
                 help=("Pull image w/tag 'recommended' [True]"),
                 type=bool,
                 default=True,
-            )
-        if component == "scanner":
-            parser.add_argument(
-                "-j",
-                "--json",
-                help="Emit results as JSON, "
-                + " not sourceable shell fragment [False]",
-                action="store_true",
-                default=False,
             )
         if component == "prepuller":
             parser.add_argument(

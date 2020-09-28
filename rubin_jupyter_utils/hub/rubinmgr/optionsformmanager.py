@@ -9,6 +9,8 @@ from time import sleep
 from .. import SingletonScanner as SScan
 from .. import LoggableChild
 
+MAX_CACHE_AGE = 1200  # get a new tag list if it's more than 20 minutes old
+
 
 class RubinOptionsFormManager(LoggableChild):
     """Class to create and read a spawner form.
@@ -31,10 +33,6 @@ class RubinOptionsFormManager(LoggableChild):
             #  your authenticator's refresh_user(), clear options_form_data.
             uname = self.parent.user.escaped_name
             self.log.debug("Creating options form for '{}'".format(uname))
-            if self.options_form_data:
-                self.log.debug("Returning cached options form.")
-                return self.options_form_data
-            self.log.debug("Regenerating form_data for '{}'.".format(uname))
             cfg = self.parent.config
             scanner = SScan(
                 host=cfg.lab_repo_host,
@@ -45,12 +43,25 @@ class RubinOptionsFormManager(LoggableChild):
                 weeklies=cfg.prepuller_weeklies,
                 releases=cfg.prepuller_releases,
                 cachefile=cfg.prepuller_cachefile,
+                max_cache_age=MAX_CACHE_AGE,
                 debug=cfg.debug,
             )
+            # Scanner does a scan_if_needed, so either we have fresh data
+            #  now, or we will in a little while, or something is broken.
             self._scanner = scanner
-            self.log.debug("Calling _sync_scan() for '{}'.".format(uname))
-            self._sync_scan()
-            self.log.debug("Back from _sync_scan() for '{}'.".format(uname))
+            now = datetime.datetime.utcnow()
+            delta = datetime.timedelta(MAX_CACHE_AGE)
+            if ((scanner.last_scan + delta) < now):
+                self.log.info("Tag data has expired.")
+            else:
+                if self.options_form_data:
+                    self.log.debug("Returning cached options form.")
+                    return self.options_form_data
+            self.log.debug("Regenerating form_data for '{}'.".format(uname))
+            self.log.debug("Calling _wait_for_scan() for '{}'.".format(uname))
+            self._wait_for_scan()
+            self.log.debug(
+                "Back from _wait_for_scan() for '{}'.".format(uname))
             lnames, ldescs = scanner.extract_image_info()
             desclist = []
             # Setting this up to pass into the Jinja template more easily
@@ -58,7 +69,7 @@ class RubinOptionsFormManager(LoggableChild):
                 desclist.append({"name": img, "desc": ldescs[idx]})
             colon = lnames[0].find(":")
             custtag = lnames[0][:colon] + ":__custom"
-            all_tags = scanner.get_all_tags()
+            display_tags = scanner.get_display_tags()
             now = datetime.datetime.now()
             nowstr = now.ctime()
             if not now.tzinfo:
@@ -85,7 +96,7 @@ class RubinOptionsFormManager(LoggableChild):
             optform = template.render(
                 defaultsize=defaultsize,
                 desclist=desclist,
-                all_tags=all_tags,
+                all_tags=display_tags,
                 custtag=custtag,
                 sizelist=list(self.sizemap.values()),
                 nowstr=nowstr,
@@ -105,21 +116,25 @@ class RubinOptionsFormManager(LoggableChild):
             self.log.debug("Resolved tag for '{}'->'{}'.".format(tag, rtag))
             return rtag
 
-    def _sync_scan(self):
-        with start_action(action_type="_sync_scan"):
+    def _wait_for_scan(self):
+        with start_action(action_type="_wait_for_scan"):
             uname = self.parent.user.escaped_name
-            self.log.debug("Entering _sync_scan() for '{}'.".format(uname))
+            self.log.debug("Entering _wait_for_scan() for '{}'.".format(uname))
             scanner = self._scanner
             cfg = self.parent.config
             delay_interval = cfg.initial_scan_interval
             max_delay_interval = cfg.max_scan_interval
             max_delay = cfg.max_scan_delay
             delay = 0
-            epoch = datetime.datetime(1970, 1, 1)
-            while scanner.last_updated == epoch:
+            now = datetime.datetime.utcnow()
+            delta = datetime.timedelta(seconds=max_delay_interval)
+            while (scanner.last_scan + delta) < now:
+                if not scanner.scanning:
+                    scanner.scan_if_needed()
+                    continue
                 self.log.info(
                     (
-                        "Scan results not available yet; sleeping "
+                        "Fresh scan results not available yet; sleeping "
                         + "{:02.1f}s ({:02.1f}s "
                         + "so far)."
                     ).format(delay_interval, delay)
@@ -131,11 +146,15 @@ class RubinOptionsFormManager(LoggableChild):
                     delay_interval = max_delay_interval
                 if delay >= max_delay:
                     errstr = (
-                        "Scan results did not become available in "
+                        "Fresh scan results did not become available in "
                         + "{}s.".format(max_delay)
                     )
-                    raise RuntimeError(errstr)
-            self.log.debug("Completed _sync_scan() for '{}'.".format(uname))
+                    if scanner._results:
+                        self.log.error("Returning stale scan data.")
+                    else:
+                        raise RuntimeError(errstr)
+            self.log.debug(
+                "Completed _wait_for_scan() for '{}'.".format(uname))
 
     def _make_sizemap(self):
         with start_action(action_type="_make_sizemap"):
