@@ -202,7 +202,7 @@ class ScanRepo(object):
         minor = 0
         patch = 0
         rest = None
-        if tag.find("_") != -1:  # New-style tag
+        if "_" in tag:  # New-style tag
             components = tag.split("_")
             btype = components[0]
             # Handle the r17_0_1 case.  Yeah, special-cased because, in fact,
