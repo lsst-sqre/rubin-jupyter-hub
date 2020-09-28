@@ -652,6 +652,16 @@ class ScanRepo(object):
             # Releases are special: see _prune_releases
             pruned_releases, _ = self._prune_releases()
             r_images.extend(pruned_releases)
+            # We always want to show the first n *real releases*.  Any rcs
+            #  that are more recent than that are shown too, but they do
+            #  not count towards the total.
+            extra_rcs = 0
+            for img in r_images:
+                sv = img['version']
+                if sv.prerelease:
+                    extra_rcs += 1
+                else:
+                    break
             resultmap = {}
             if self.recommended:
                 if c_images:
@@ -663,7 +673,7 @@ class ScanRepo(object):
             if self.dailies:
                 resultmap['daily'] = d_images[:self.dailies]
             if self.releases:
-                resultmap['release'] = r_images[:self.releases]
+                resultmap['release'] = r_images[:(self.releases + extra_rcs)]
             self.data = resultmap
             self.display_tags = []
             for imglist in [w_images, d_images, e_images,

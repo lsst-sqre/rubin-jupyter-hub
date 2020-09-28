@@ -53,11 +53,11 @@ class Prepuller(object):
                 slashes = image.count("/")
                 if slashes == 0:
                     image = "library/" + image
+                if slashes == 1:
+                    image = "registry.hub.docker.com/" + image
             self.images.append(image)
         # Cheap way to deduplicate lists
         self.images = list(set(self.images))
-        if self.images:
-            self.images.sort()
         # Not portable to non-Unixy systems.
         if self.args.timeout >= 0:
             self.logger.debug("Setting timeout to %d s." % self.args.timeout)
@@ -124,7 +124,6 @@ class Prepuller(object):
                     experimentals=self.args.experimentals,
                     recommended=self.args.recommended,
                     insecure=self.args.insecure,
-                    sort_field=self.args.sort,
                     cachefile=self.cachefile,
                     debug=self.args.debug,
                     username=self.args.username,
@@ -137,20 +136,22 @@ class Prepuller(object):
                     )
                 else:
                     self.logger.debug("Scanning Docker repo for images")
-                self.repo.scan()
+                repo = self.repo
+                repo.scan()
                 self.logger.debug(
                     "Scan Data: "
-                    + json.dumps(self.repo.data, sort_keys=True, indent=4)
+                    + json.dumps(self.repo.data, sort_keys=True, indent=4,
+                                 default=repo._serialize_datetime_and_semver)
                 )
                 scan_imgs = []
                 sections = []
                 if self.args.recommended:
                     sections.extend(["recommended"])
-                sections.extend(["experimental", "daily", "weekly", "release"])
+                sections.extend(["weekly", "daily", "experimental", "release"])
                 for section in sections:
-                    if section not in self.repo.data:
+                    if section not in repo.data:
                         continue
-                    for entry in self.repo.data[section]:
+                    for entry in repo.data[section]:
                         exhost = ""
                         if self.args.repo:
                             exhost = self.args.repo
