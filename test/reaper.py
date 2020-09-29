@@ -10,6 +10,5 @@ q = rh.Reaper(
     dry_run=True
 )
 print("Last scan: {}".format(q.last_scan.strftime('%Y-%m-%d %H:%M:%S')))
-q.scan_if_needed()
 q._select_victims()
 print(json.dumps(q.reapable, indent=4, sort_keys=True))

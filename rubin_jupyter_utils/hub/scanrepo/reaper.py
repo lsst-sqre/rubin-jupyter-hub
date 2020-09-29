@@ -38,6 +38,7 @@ class Reaper(SingletonScanner):
             "experimental": [],
         }
         with start_action(action_type="_categorize_tags"):
+            self.scan_if_needed()
             rresults = self._reduced_results  # already sorted
             for res in rresults:
                 rt = res["type"]
