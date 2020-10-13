@@ -79,7 +79,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
         self.fs_gid = None
         self.extra_labels = {}
         self.extra_annotations = {}
-        self.image_pull_secrets = None
+        self.image_pull_secrets = []
         self.privileged = False
         self.working_dir = None
         self.lifecycle_hooks = {}  # This one will be useful someday.
