@@ -398,13 +398,18 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
         pod_env["DASK_VOLUME_B64"] = vm.get_dask_volume_b64()
         self.volumes = vm.k8s_volumes
         self.volume_mounts = vm.k8s_vol_mts
+        # Add SAL-specific settings
         # Add multus annotations if requested
         if cfg.enable_multus:
             annotations[
                 "k8s.v1.cni.cncf.io/networks"
             ] = "kube-system/macvlan-conf"
+        if cfg.lab_dds_interface:
+            pod_env["LSST_DDS_INTERFACE"] = cfg.lab_dds_interface
         if cfg.lab_dds_domain:
             pod_env["LSST_DDS_DOMAIN"] = cfg.lab_dds_domain
+        if cfg.lab_dds_partition_prefix:
+            pod_env["LSST_DDS_PARTITION_PREFIX"] = cfg.lab_dds_partition_prefix
         # Generate the pod definition.
         sanitized_env = sanitize_dict(
             pod_env,
