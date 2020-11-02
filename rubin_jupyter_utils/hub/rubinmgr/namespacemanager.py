@@ -1,7 +1,6 @@
 """Class to provide namespace manipulation.
 """
 
-import base64
 import json
 import time
 import yaml
@@ -14,6 +13,8 @@ from rubin_jupyter_utils.helpers import (
     make_group_lines,
     add_user_to_groups,
     assemble_gids,
+    get_pull_secret,
+    get_pull_secret_reflist
 )
 
 
@@ -97,24 +98,8 @@ class RubinNamespaceManager(LoggableChild):
             username = self.parent.user.escaped_name
 
             cfg = self.parent.config
-            basic_auth = '{}:{}'.format(cfg.lab_repo_username, cfg.lab_repo_password).encode('utf-8')
-            authdata = {
-              "auths": {
-                cfg.lab_repo_host: {
-                  "username": cfg.lab_repo_username,
-                  "password": cfg.lab_repo_password,
-                  "auth": base64.b64encode(basic_auth).decode('utf-8')
-                }
-              }
-            }
-
-            b64authdata = base64.b64encode(json.dumps(authdata).encode('utf-8')).decode('utf-8')
-            pull_secret = client.V1Secret()
-            pull_secret.metadata = client.V1ObjectMeta(name='pull-secret')
-            pull_secret.type = "kubernetes.io/dockerconfigjson"
-            pull_secret.data = {".dockerconfigjson": b64authdata}
-
-            pull_secret_ref = client.V1LocalObjectReference(name='pull-secret')
+            pull_secret = get_pull_secret(cfg)
+            pull_secret_ref = get_pull_secret_reflist(pull_secret)
 
             account = "{}-svcacct".format(username)
             self.service_account = account
@@ -128,7 +113,7 @@ class RubinNamespaceManager(LoggableChild):
                 },
             )
             svcacct = client.V1ServiceAccount(metadata=md,
-                image_pull_secrets=[pull_secret_ref])
+                                              image_pull_secrets=pull_secret_ref)
 
             # These rules let us manipulate Dask pods, Argo Workflows, and
             #  Multus CNI interfaces
