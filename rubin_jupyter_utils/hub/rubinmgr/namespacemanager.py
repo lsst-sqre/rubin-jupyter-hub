@@ -113,8 +113,7 @@ class RubinNamespaceManager(LoggableChild):
                 },
             )
             svcacct = client.V1ServiceAccount(metadata=md,
-                                              image_pull_secrets=[
-                                                  pull_secret_ref])
+                                              image_pull_secrets=pull_secret_ref)
 
             # These rules let us manipulate Dask pods, Argo Workflows, and
             #  Multus CNI interfaces
