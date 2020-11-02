@@ -270,7 +270,7 @@ class Prepuller(object):
                         ),
                     )
                 ],
-                image_pull_secrets=self.image_pull_secrets,
+                image_pull_secrets=self.pull_secret_reflist,
                 restart_policy="Never",
                 node_name=node,
             )
