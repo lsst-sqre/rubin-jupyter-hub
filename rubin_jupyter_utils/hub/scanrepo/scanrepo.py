@@ -234,7 +234,9 @@ class ScanRepo(object):
                     patch = int(components[3])  # This will need work if
                     # we ever get "r_22_0_rc1" rather than "r_22_0_0_rc1"
                 if len(components) > 4:
-                    rest = "_".join(components[4:])
+                    rest = components[4]
+                    if len(components) > 5:
+                        rest = rest + '+' + '.'.join(components[5:])
                     if rest.startswith("rc"):  # Special-cased
                         rest = "rc." + rest[2:]  # put it in semver string fmt
                 ld = "Release {}.{}".format(major, minor)
