@@ -229,7 +229,12 @@ class ScanRepo(object):
             elif btype == "r":
                 ttype = "release"
                 major = int(components[1])
-                minor = int(components[2])
+                try:
+                    minor = int(components[2])
+                except ValueError:
+                    if (components[2] == "flattened" or
+                            components[2] == "layered"):
+                        minor = 0  # Fallout from flattener
                 if len(components) > 3:
                     patch = int(components[3])  # This will need work if
                     # we ever get "r_22_0_rc1" rather than "r_22_0_0_rc1"
@@ -654,6 +659,12 @@ class ScanRepo(object):
             all_r_images = []
             rresults = self._reduced_results
             for res in rresults:
+                # Don't prepull "_layered" or "_flattened" images.
+                #  This is an artifact from our flattener, which we
+                #  need for containerd + K8s 1.18+
+                rname = res["name"]
+                if rname.endswith("_layered") or rname.endswith("_flattened"):
+                    continue
                 rtype = res["type"]
                 if rtype == "release":
                     all_r_images.append(res)
