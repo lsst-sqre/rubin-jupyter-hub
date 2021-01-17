@@ -7,10 +7,12 @@ from eliot import start_action
 from kubernetes import client, config
 from .scanrepo import ScanRepo
 from threading import Thread
-from rubin_jupyter_utils.helpers import (make_logger,
-                                         get_pull_secret,
-                                         get_pull_secret_reflist,
-                                         ensure_pull_secret)
+from rubin_jupyter_utils.helpers import (
+    make_logger,
+    get_pull_secret,
+    get_pull_secret_reflist,
+    ensure_pull_secret,
+)
 from rubin_jupyter_utils.config import RubinConfig
 
 
@@ -150,8 +152,12 @@ class Prepuller(object):
                 repo.scan()
                 self.logger.debug(
                     "Scan Data: "
-                    + json.dumps(self.repo.data, sort_keys=True, indent=4,
-                                 default=repo._serialize_datetime_and_semver)
+                    + json.dumps(
+                        self.repo.data,
+                        sort_keys=True,
+                        indent=4,
+                        default=repo._serialize_datetime_and_semver,
+                    )
                 )
                 scan_imgs = []
                 sections = []

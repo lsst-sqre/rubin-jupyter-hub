@@ -47,16 +47,17 @@ class Reaper(SingletonScanner):
                     self._categorized_tags[rt].append(res["name"])
             _, old_prereleases = self._prune_releases()
             self._categorized_tags["obsolete_prereleases"] = [
-                x["name"] for x in old_prereleases]
+                x["name"] for x in old_prereleases
+            ]
 
     def _select_victims(self):
         with start_action(action_type="_select victims"):
             self._categorize_tags()
             reaptags = []
             sc = self._categorized_tags
-            reaptags.extend(sc["experimental"][self.keep_experimentals:])
-            reaptags.extend(sc["daily"][self.keep_dailies:])
-            reaptags.extend(sc["weekly"][self.keep_weeklies:])
+            reaptags.extend(sc["experimental"][self.keep_experimentals :])
+            reaptags.extend(sc["daily"][self.keep_dailies :])
+            reaptags.extend(sc["weekly"][self.keep_weeklies :])
             reaptags.extend(sc["obsolete_prereleases"])
             reapable = {}
             for r in reaptags:

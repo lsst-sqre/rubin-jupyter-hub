@@ -332,7 +332,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             colon = image.find(":")
             if colon > -1:
                 imgname = image[:colon]
-                tag = image[(colon + 1):]
+                tag = image[(colon + 1) :]
                 if tag == "recommended" or tag.startswith("latest"):
                     # Resolve convenience tags to real build tags.
                     self.log.debug("Resolving tag '{}'".format(tag))
