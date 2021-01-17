@@ -33,7 +33,8 @@ class MultiNamespacedKubeSpawner(KubeSpawner):
         except ConfigException:
             config.load_kube_config()
         self.log.debug(
-            "Spawner __init__ done.  Namespace '{}'.".format(self.namespace))
+            "Spawner __init__ done.  Namespace '{}'.".format(self.namespace)
+        )
 
     def _start_watching_events(self, replace=True):
         return self._start_reflector(

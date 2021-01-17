@@ -14,7 +14,7 @@ from rubin_jupyter_utils.helpers import (
     add_user_to_groups,
     assemble_gids,
     get_pull_secret,
-    get_pull_secret_reflist
+    get_pull_secret_reflist,
 )
 
 
@@ -112,8 +112,9 @@ class RubinNamespaceManager(LoggableChild):
                     acd + "sync-options": "Prune=false",
                 },
             )
-            svcacct = client.V1ServiceAccount(metadata=md,
-                                              image_pull_secrets=pull_secret_ref)
+            svcacct = client.V1ServiceAccount(
+                metadata=md, image_pull_secrets=pull_secret_ref
+            )
 
             # These rules let us manipulate Dask pods, Argo Workflows, and
             #  Multus CNI interfaces
@@ -187,26 +188,37 @@ class RubinNamespaceManager(LoggableChild):
             namespace = self.namespace
             api = self.parent.api
             rbac_api = self.parent.rbac_api
-            pull_secret, svcacct, role, rolebinding = self.def_namespaced_account_objects()
+            (
+                pull_secret,
+                svcacct,
+                role,
+                rolebinding,
+            ) = self.def_namespaced_account_objects()
             account = self.service_account
 
             try:
                 self.log.info("Attempting to create pull secret.")
                 api.create_namespaced_secret(
-                    namespace=namespace,
-                    body=pull_secret)
+                    namespace=namespace, body=pull_secret
+                )
             except ApiException as e:
                 if e.status != 409:
-                    self.log.exception(("Create pull secret '{}' " +
-                                        "in namespace '{}' " +
-                                        "failed: '{}").format(account,
-                                                              namespace, e))
+                    self.log.exception(
+                        (
+                            "Create pull secret '{}' "
+                            + "in namespace '{}' "
+                            + "failed: '{}"
+                        ).format(account, namespace, e)
+                    )
                     raise
                 else:
-                    self.log.info(("Pull secret '{}' " +
-                                   "in namespace '{}' " +
-                                   "already exists.").format(account,
-                                                             namespace))
+                    self.log.info(
+                        (
+                            "Pull secret '{}' "
+                            + "in namespace '{}' "
+                            + "already exists."
+                        ).format(account, namespace)
+                    )
 
             try:
                 self.log.info("Attempting to create service account.")

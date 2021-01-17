@@ -51,7 +51,7 @@ class RubinOptionsFormManager(LoggableChild):
             self._scanner = scanner
             now = datetime.datetime.utcnow()
             delta = datetime.timedelta(MAX_CACHE_AGE)
-            if ((scanner.last_scan + delta) < now):
+            if (scanner.last_scan + delta) < now:
                 self.log.info("Tag data has expired.")
             else:
                 if self.options_form_data:
@@ -61,7 +61,8 @@ class RubinOptionsFormManager(LoggableChild):
             self.log.debug("Calling _wait_for_scan() for '{}'.".format(uname))
             self._wait_for_scan()
             self.log.debug(
-                "Back from _wait_for_scan() for '{}'.".format(uname))
+                "Back from _wait_for_scan() for '{}'.".format(uname)
+            )
             lnames, ldescs = scanner.extract_image_info()
             desclist = []
             # Setting this up to pass into the Jinja template more easily
@@ -154,7 +155,8 @@ class RubinOptionsFormManager(LoggableChild):
                     else:
                         raise RuntimeError(errstr)
             self.log.debug(
-                "Completed _wait_for_scan() for '{}'.".format(uname))
+                "Completed _wait_for_scan() for '{}'.".format(uname)
+            )
 
     def _make_sizemap(self):
         with start_action(action_type="_make_sizemap"):

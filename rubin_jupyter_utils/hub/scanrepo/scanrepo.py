@@ -123,8 +123,16 @@ class ScanRepo(object):
                 if not ld:
                     ld, _, _, _ = self._describe_tag(tag)
                 ldescs.append(ld)
-            ls = [self.reghost + "/" + self.owner + "/" +
-                  self.name + ":" + x["name"] for x in cs]
+            ls = [
+                self.reghost
+                + "/"
+                + self.owner
+                + "/"
+                + self.name
+                + ":"
+                + x["name"]
+                for x in cs
+            ]
             return ls, ldescs
 
     def _read_cachefile(self):
@@ -229,14 +237,21 @@ class ScanRepo(object):
             elif btype == "r":
                 ttype = "release"
                 major = int(components[1])
-                minor = int(components[2])
+                try:
+                    minor = int(components[2])
+                except ValueError:
+                    if (
+                        components[2] == "flattened"
+                        or components[2] == "layered"
+                    ):
+                        minor = 0  # Fallout from flattener
                 if len(components) > 3:
                     patch = int(components[3])  # This will need work if
                     # we ever get "r_22_0_rc1" rather than "r_22_0_0_rc1"
                 if len(components) > 4:
                     rest = components[4]
                     if len(components) > 5:
-                        rest = rest + '+' + '.'.join(components[5:])
+                        rest = rest + "+" + ".".join(components[5:])
                     if rest.startswith("rc"):  # Special-cased
                         rest = "rc." + rest[2:]  # put it in semver string fmt
                 ld = "Release {}.{}".format(major, minor)
@@ -556,8 +571,9 @@ class ScanRepo(object):
             tag_futures = {}
             with concurrent.futures.ThreadPoolExecutor(max_workers=30) as xo:
                 for name in check_names:
-                    tag_futures[name] = xo.submit(self._get_tag_hash,
-                                                  headers, baseurl, name)
+                    tag_futures[name] = xo.submit(
+                        self._get_tag_hash, headers, baseurl, name
+                    )
                 timeout = 120
                 i = 0
                 while True:
@@ -567,16 +583,18 @@ class ScanRepo(object):
                             if fut.done():
                                 ihash = fut.result(timeout=1)
                                 self.logger.debug(
-                                    "Got tag for {}".format(name))
+                                    "Got tag for {}".format(name)
+                                )
                                 namemap[name]["hash"] = ihash
                                 results[name]["hash"] = ihash
                                 del tag_futures[name]
                     if not tag_futures:  # We have consumed them all
                         break
-                    i = i+1
+                    i = i + 1
                     if i > timeout:
                         raise RuntimeError(
-                            "tag check didn't complete in {}s".format(i))
+                            "tag check didn't complete in {}s".format(i)
+                        )
                     time.sleep(1)
             self._name_to_manifest.update(namemap)
             self._writecachefile()
@@ -654,6 +672,12 @@ class ScanRepo(object):
             all_r_images = []
             rresults = self._reduced_results
             for res in rresults:
+                # Don't prepull "_layered" or "_flattened" images.
+                #  This is an artifact from our flattener, which we
+                #  need for containerd + K8s 1.18+
+                rname = res["name"]
+                if rname.endswith("_layered") or rname.endswith("_flattened"):
+                    continue
                 rtype = res["type"]
                 if rtype == "release":
                     all_r_images.append(res)
@@ -681,7 +705,7 @@ class ScanRepo(object):
             #  not count towards the total.
             extra_rcs = 0
             for img in r_images:
-                sv = img['version']
+                sv = img["version"]
                 if sv.prerelease:
                     extra_rcs += 1
                 else:
@@ -689,19 +713,24 @@ class ScanRepo(object):
             resultmap = {}
             if self.recommended:
                 if c_images:
-                    resultmap['recommended'] = [c_images[0]]
+                    resultmap["recommended"] = [c_images[0]]
             if self.weeklies:
-                resultmap['weekly'] = w_images[:self.weeklies]
+                resultmap["weekly"] = w_images[: self.weeklies]
             if self.experimentals:
-                resultmap['experimental'] = e_images[:self.experimentals]
+                resultmap["experimental"] = e_images[: self.experimentals]
             if self.dailies:
-                resultmap['daily'] = d_images[:self.dailies]
+                resultmap["daily"] = d_images[: self.dailies]
             if self.releases:
-                resultmap['release'] = r_images[:(self.releases + extra_rcs)]
+                resultmap["release"] = r_images[: (self.releases + extra_rcs)]
             self.data = resultmap
             self.display_tags = []
-            for imglist in [w_images, d_images, e_images,
-                            all_r_images, o_images]:
+            for imglist in [
+                w_images,
+                d_images,
+                e_images,
+                all_r_images,
+                o_images,
+            ]:
                 self.display_tags.extend([x["name"] for x in imglist])
 
     def _prune_releases(self):
