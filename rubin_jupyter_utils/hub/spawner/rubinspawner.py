@@ -11,6 +11,7 @@ from rubin_jupyter_utils.helpers import (
     get_supplemental_gids,
 )
 from .multispawner import MultiNamespacedKubeSpawner
+from .objects import _create_multus_init_container
 from eliot import start_action
 from kubespawner.objects import make_pod
 from tornado import gen
@@ -332,7 +333,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             colon = image.find(":")
             if colon > -1:
                 imgname = image[:colon]
-                tag = image[(colon + 1) :]
+                tag = image[(colon + 1):]
                 if tag == "recommended" or tag.startswith("latest"):
                     # Resolve convenience tags to real build tags.
                     self.log.debug("Resolving tag '{}'".format(tag))
@@ -401,9 +402,9 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
         # Add SAL-specific settings
         # Add multus annotations if requested
         if cfg.enable_multus:
-            annotations[
-                "k8s.v1.cni.cncf.io/networks"
-            ] = "kube-system/macvlan-conf"
+            annotations.update(cfg.multus_annotation)
+            self.init_containers.append(_create_multus_init_container(
+                cfg.multus_init_container_image))
         if cfg.lab_dds_interface:
             pod_env["LSST_DDS_INTERFACE"] = cfg.lab_dds_interface
         if cfg.lab_dds_domain:
