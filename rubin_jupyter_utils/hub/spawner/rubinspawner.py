@@ -431,6 +431,13 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             claims = ast["claims"]
             strict_ldap = self.rubin_mgr.config.strict_ldap_groups
             self.supplemental_gids = get_supplemental_gids(claims, strict_ldap)
+            self.extra_pod_config.update({
+                "security_context": {
+                    "runAsUser": uid,
+                    "runAsGroup": uid,
+                    "allowPrivilegeEscalation": False
+                }
+            })
         self.set_user_namespace()
         daskconfig = None
         if cfg.allow_dask_spawn:
