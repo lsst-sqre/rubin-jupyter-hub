@@ -196,29 +196,30 @@ class RubinNamespaceManager(LoggableChild):
             ) = self.def_namespaced_account_objects()
             account = self.service_account
 
-            try:
-                self.log.info("Attempting to create pull secret.")
-                api.create_namespaced_secret(
-                    namespace=namespace, body=pull_secret
-                )
-            except ApiException as e:
-                if e.status != 409:
-                    self.log.exception(
-                        (
-                            "Create pull secret '{}' "
-                            + "in namespace '{}' "
-                            + "failed: '{}"
-                        ).format(account, namespace, e)
+            if pull_secret:
+                try:
+                    self.log.info("Attempting to create pull secret.")
+                    api.create_namespaced_secret(
+                        namespace=namespace, body=pull_secret
                     )
-                    raise
-                else:
-                    self.log.info(
-                        (
-                            "Pull secret '{}' "
-                            + "in namespace '{}' "
-                            + "already exists."
-                        ).format(account, namespace)
-                    )
+                except ApiException as e:
+                    if e.status != 409:
+                        self.log.exception(
+                            (
+                                "Create pull secret '{}' "
+                                + "in namespace '{}' "
+                                + "failed: '{}"
+                            ).format(account, namespace, e)
+                        )
+                        raise
+                    else:
+                        self.log.info(
+                            (
+                                "Pull secret '{}' "
+                                + "in namespace '{}' "
+                                + "already exists."
+                            ).format(account, namespace)
+                        )
 
             try:
                 self.log.info("Attempting to create service account.")
