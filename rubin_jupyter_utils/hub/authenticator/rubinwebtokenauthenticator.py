@@ -23,22 +23,19 @@ class RubinWebTokenAuthenticator(
         self.cached_auth_state = {}
 
     def get_handlers(self, app):
-        """Install custom handlers.
-        """
+        """Install custom handlers."""
         with start_action(action_type="get_handlers"):
             return [
                 (r"/login", RubinWebTokenLoginHandler),
             ]
 
     def logout_url(self, base_url):
-        """Returns the logout URL for JWT.
-        """
+        """Returns the logout URL for JWT."""
         with start_action(action_type="logout_url"):
             return self.rubin_mgr.config.jwt_logout_url
 
     async def refresh_user(self, user, handler):
-        """Delegate to login handler, if this happens in the login
-        """
+        """Delegate to login handler, if this happens in the login"""
         # We don't want to do this anywhere but on the login handler.
         #  It's cheating, but we'll just check to see if there is
         #  a custom method for refresh_user on the handler and call it

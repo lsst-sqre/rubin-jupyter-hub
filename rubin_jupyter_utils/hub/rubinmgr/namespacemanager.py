@@ -19,8 +19,7 @@ from rubin_jupyter_utils.helpers import (
 
 
 class RubinNamespaceManager(LoggableChild):
-    """Class to provide namespace manipulation.
-    """
+    """Class to provide namespace manipulation."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -91,8 +90,7 @@ class RubinNamespaceManager(LoggableChild):
             self.log.debug("Namespace resources ensured.")
 
     def def_namespaced_account_objects(self):
-        """Define K8s objects for things we need in the namespace.
-        """
+        """Define K8s objects for things we need in the namespace."""
         with start_action(action_type="define_namespaced_account_objects"):
             namespace = self.namespace
             username = self.parent.user.escaped_name
@@ -650,8 +648,7 @@ class RubinNamespaceManager(LoggableChild):
             )
 
     def dump(self):
-        """Return dict for pretty-printing.
-        """
+        """Return dict for pretty-printing."""
         nd = {
             "namespace": self.namespace,
             "service_account": self.service_account,

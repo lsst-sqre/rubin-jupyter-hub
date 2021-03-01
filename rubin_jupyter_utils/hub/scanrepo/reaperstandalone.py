@@ -4,8 +4,7 @@ from .parse_args import parse_args
 
 
 def reaperstandalone():
-    """Standalone command for scanning repo.
-    """
+    """Standalone command for scanning repo."""
     args = parse_args(desc="Remove obsolete lab images", component="reaper")
     wilford_grimly = Reaper(
         host=args.repo,

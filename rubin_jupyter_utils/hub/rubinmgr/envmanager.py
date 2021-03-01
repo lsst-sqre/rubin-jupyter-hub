@@ -106,14 +106,12 @@ class RubinEnvironmentManager(LoggableChild):
             }
 
     def get_env(self):
-        """Return the whole stored environment to caller as a dict.
-        """
+        """Return the whole stored environment to caller as a dict."""
         with start_action(action_type="get_env"):
             return self.pod_env
 
     def get_env_key(self, key):
-        """Return value of a specific key in the stored environment to caller.
-        """
+        """Return value of a specific key in the stored environment to caller."""
         with start_action(action_type="get_env_key"):
             return self.pod_env.get(key)
 
@@ -128,8 +126,7 @@ class RubinEnvironmentManager(LoggableChild):
             return sanitize_dict(incoming, sensitive)
 
     def dump(self):
-        """Return contents as a dict for pretty-printing.
-        """
+        """Return contents as a dict for pretty-printing."""
         ed = {
             "parent": str(self.parent),
             "pod_env": self._sanitize(self.pod_env),

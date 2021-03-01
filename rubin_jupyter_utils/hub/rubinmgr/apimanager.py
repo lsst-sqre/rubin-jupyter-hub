@@ -27,8 +27,7 @@ class RubinAPIManager(LoggableChild, metaclass=Singleton):
         self.api = api
 
     def dump(self):
-        """Return contents dict for aggregation and pretty-printing.
-        """
+        """Return contents dict for aggregation and pretty-printing."""
         ad = {
             "parent": str(self.parent),
             "api": str(self.api),

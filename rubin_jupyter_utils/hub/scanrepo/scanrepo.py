@@ -19,8 +19,8 @@ from rubin_jupyter_utils.helpers import make_logger
 class ScanRepo(object):
     """Class to scan repository and create results.
 
-       Based on:
-       https://github.com/shangteus/py-dockerhub/blob/master/dockerhub.py"""
+    Based on:
+    https://github.com/shangteus/py-dockerhub/blob/master/dockerhub.py"""
 
     def __init__(
         self,
@@ -94,14 +94,12 @@ class ScanRepo(object):
         self.close()
 
     def close(self):
-        """Close the session.
-        """
+        """Close the session."""
         if self._session:
             self._session.close()
 
     def extract_image_info(self):
-        """Build image name list and image description list.
-        """
+        """Build image name list and image description list."""
         with start_action(action_type="extract_image_info"):
 
             cs = []
@@ -346,8 +344,7 @@ class ScanRepo(object):
         return ddate.year, ddate.month, ddate.day  # These are integers
 
     def resolve_tag(self, tag):
-        """Resolve a tag (used for "recommended" or "latest*").
-        """
+        """Resolve a tag (used for "recommended" or "latest*")."""
         with start_action(action_type="resolve_tag"):
             mfest = self._name_to_manifest.get(tag)
             if not mfest:
@@ -396,20 +393,17 @@ class ScanRepo(object):
             return str(o)
 
     def report(self):
-        """Print the tag data.
-        """
+        """Print the tag data."""
         with start_action(action_type="report"):
             print(self._data_to_json())
 
     def get_data(self):
-        """Return the tag data.
-        """
+        """Return the tag data."""
         with start_action(action_type="get_data"):
             return self.data
 
     def get_all_tags(self):
-        """Return all tags in the repository, sorted by semver.
-        """
+        """Return all tags in the repository, sorted by semver."""
         with start_action(action_type="get_all_tags"):
             return self._all_tags
 
@@ -433,8 +427,7 @@ class ScanRepo(object):
         return page
 
     def scan(self):
-        """Perform the repository scan.
-        """
+        """Perform the repository scan."""
         with start_action(action_type="scan"):
             headers = {"Accept": "application/json"}
             url = self.registry_url + "tags/list"
@@ -476,8 +469,7 @@ class ScanRepo(object):
             self.process_resultmap()
 
     def process_resultmap(self):
-        """Take the results from a scan and parse them into usable data.
-        """
+        """Take the results from a scan and parse them into usable data."""
         if not self._results:
             self._synthesize_results_from_resultmap()
         self._map_names_to_manifests()
@@ -756,16 +748,14 @@ class ScanRepo(object):
             self.logger.warning("Authentication Required.")
             self.logger.warning("Headers: {}".format(headers))
             username, password = self._extract_auth_from_pull_secret()
-            if not username and password: # Didn't extract auth info
+            if not username and password:  # Didn't extract auth info
                 return {}
             magicheader = headers.get(
                 "WWW-Authenticate", headers.get("Www-Authenticate", None)
             )
             if magicheader.startswith("BASIC"):
                 auth_hdr = base64.b64encode(
-                    "{}:{}".format(username, password).encode(
-                        "ascii"
-                    )
+                    "{}:{}".format(username, password).encode("ascii")
                 )
                 self.logger.info("Auth header now: {}".format(auth_hdr))
                 return {"Authorization": "Basic " + auth_hdr.decode()}
@@ -824,11 +814,11 @@ class ScanRepo(object):
         secret = self.client.read_namespaced_secret(
             pull_secret_name,
             get_execution_namespace(),
-            )
+        )
         b64_auths = secret.data["auths"]
         json_auths = base64.b64decode(b64_auths)
         auths = json.load(json_auths)
         hostauth = auths.get(host)
-        if not hostauth: # No auth for given host
+        if not hostauth:  # No auth for given host
             return None, None
-        return hostauth['username'], hostauth['password']
+        return hostauth["username"], hostauth["password"]

@@ -8,8 +8,7 @@ from .. import LoggableChild
 
 
 class RubinQuotaManager(LoggableChild):
-    """Quota support for Rubin LSP Jupyterlab and Dask pods.
-    """
+    """Quota support for Rubin LSP Jupyterlab and Dask pods."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -66,8 +65,7 @@ class RubinQuotaManager(LoggableChild):
             self.quota = qs.hard
 
     def _set_custom_user_resources(self):
-        """Create custom resource definitions for user.
-        """
+        """Create custom resource definitions for user."""
         with start_action(action_type="_set_custom_user_resources"):
             if not self.resourcemap:
                 self.log.debug("No resource map found; generating.")
@@ -123,8 +121,7 @@ class RubinQuotaManager(LoggableChild):
 
     # Brought in from namespacedkubespawner
     def ensure_namespaced_resource_quota(self, quotaspec):
-        """Create K8s quota object if necessary.
-        """
+        """Create K8s quota object if necessary."""
         with start_action(action_type="ensure_namespaced_resource_quota"):
             self.log.debug("Entering ensure_namespaced_resource_quota()")
             namespace = self.parent.namespace_mgr.namespace
@@ -133,7 +130,10 @@ class RubinQuotaManager(LoggableChild):
                 self.log.error("Will not create quota for default namespace!")
                 return
             quota = client.V1ResourceQuota(
-                metadata=client.V1ObjectMeta(name="quota",), spec=quotaspec
+                metadata=client.V1ObjectMeta(
+                    name="quota",
+                ),
+                spec=quotaspec,
             )
             self.log.info("Creating quota: %r" % quota)
             try:
@@ -167,8 +167,7 @@ class RubinQuotaManager(LoggableChild):
             api.delete_namespaced_resource_quota(qname, namespace, dopts)
 
     def dump(self):
-        """Return contents dict for pretty-printing/aggregation.
-        """
+        """Return contents dict for pretty-printing/aggregation."""
         qd = {
             "parent": str(self.parent),
             "quota": self.quota,

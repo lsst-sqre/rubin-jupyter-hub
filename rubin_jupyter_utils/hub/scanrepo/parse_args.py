@@ -9,8 +9,7 @@ def parse_args(
     desc="Get list of Lab Images for display or prepulling",
     component="scanner",
 ):
-    """Parse command-line arguments.
-    """
+    """Parse command-line arguments."""
     with start_action(action_type="parse_args"):
         parser = argparse.ArgumentParser(description=desc)
         dbg = cfg.debug

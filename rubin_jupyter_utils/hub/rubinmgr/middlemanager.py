@@ -37,8 +37,7 @@ class RubinMiddleManager(Loggable):
         self.rbac_api = self.api_mgr.rbac_api
 
     def dump(self):
-        """Return contents dict to pretty-print.
-        """
+        """Return contents dict to pretty-print."""
         md = {
             "parent": str(self.parent),
             "authenticator": str(self.authenticator),
