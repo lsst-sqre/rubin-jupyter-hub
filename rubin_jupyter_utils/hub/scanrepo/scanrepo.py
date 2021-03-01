@@ -37,8 +37,6 @@ class ScanRepo(object):
         cachefile=None,
         insecure=False,
         debug=False,
-        username=None,
-        password=None,
     ):
         self.data = {}
         self.display_tags = []
@@ -57,8 +55,6 @@ class ScanRepo(object):
         self.path = path
         self.owner = owner
         self.name = name
-        self.username = username
-        self.password = password
         self.experimentals = experimentals
         self.dailies = dailies
         self.weeklies = weeklies
@@ -759,12 +755,15 @@ class ScanRepo(object):
         with start_action(action_type="_authenticate_to_repo"):
             self.logger.warning("Authentication Required.")
             self.logger.warning("Headers: {}".format(headers))
+            username, password = self._extract_auth_from_pull_secret()
+            if not username and password: # Didn't extract auth info
+                return {}
             magicheader = headers.get(
                 "WWW-Authenticate", headers.get("Www-Authenticate", None)
             )
             if magicheader.startswith("BASIC"):
                 auth_hdr = base64.b64encode(
-                    "{}:{}".format(self.username, self.password).encode(
+                    "{}:{}".format(username, password).encode(
                         "ascii"
                     )
                 )
@@ -789,8 +788,8 @@ class ScanRepo(object):
                 del hd["realm"]
                 # We need to glue in authentication for DELETE, and that alas
                 #  means a userid and password.
-                r_user = self.username
-                r_pw = self.password
+                r_user = username
+                r_pw = password
                 auth = None
                 if r_user and r_pw:
                     auth = (r_user, r_pw)
@@ -816,3 +815,20 @@ class ScanRepo(object):
                 else:
                     self.logger.error("No auth token: {}".format(jresp))
             return {}
+
+    def _extract_auth_from_pull_secret(self):
+        host = self.host
+        pull_secret_name = self.config.pull_secret_name
+        if not pull_secret_name:
+            return None, None
+        secret = self.client.read_namespaced_secret(
+            pull_secret_name,
+            get_execution_namespace(),
+            )
+        b64_auths = secret.data["auths"]
+        json_auths = base64.b64decode(b64_auths)
+        auths = json.load(json_auths)
+        hostauth = auths.get(host)
+        if not hostauth: # No auth for given host
+            return None, None
+        return hostauth['username'], hostauth['password']

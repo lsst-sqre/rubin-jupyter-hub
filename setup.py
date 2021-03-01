@@ -69,8 +69,8 @@ setuptools.setup(
         "argo-workflows>=3.2,<4.0",
         "asgiref>=3,<4",
         "pyyaml>=5",
-        "rubin_jupyter_utils.helpers>=0.30.2,<1.0",
-        "rubin_jupyter_utils.config>=0.31.0,<1.0",
+        "rubin_jupyter_utils.helpers>=0.31.0,<1.0",
+        "rubin_jupyter_utils.config>=0.32.0,<1.0",
     ],
     entry_points={
         "console_scripts": [

@@ -98,9 +98,9 @@ class RubinNamespaceManager(LoggableChild):
             username = self.parent.user.escaped_name
 
             cfg = self.parent.config
-            pull_secret = get_pull_secret(cfg)
-            pull_secret_ref = get_pull_secret_reflist(pull_secret)
-
+            psnm = cfg.pull_secret_name
+            pull_secret = get_pull_secret(pull_secret_name=psnm)
+            pull_secret_ref = get_pull_secret_reflist(pull_secret_name=psnm)
             account = "{}-svcacct".format(username)
             self.service_account = account
             acd = "argocd.argoproj.io/"

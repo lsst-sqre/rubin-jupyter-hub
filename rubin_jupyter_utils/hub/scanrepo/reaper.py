@@ -124,8 +124,8 @@ class Reaper(SingletonScanner):
         #  https://github.com/docker/hub-feedback/issues/496
         with start_action(action_type="_delete_tags_from_docker_hub"):
             self.logger.info("Deleting tags from Docker Hub.")
-            r_user = os.getenv("IMAGE_REAPER_USER")
-            r_pw = os.getenv("IMAGE_REAPER_PASSWORD")
+            r_user = self.config.reaper_user
+            r_pw = self.config.reaper_password
             data = {"username": r_user, "password": r_pw}
             headers = {
                 "Content-Type": "application/json",

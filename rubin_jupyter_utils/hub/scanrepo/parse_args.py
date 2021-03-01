@@ -68,12 +68,6 @@ def parse_args(
             default=lro,
         )
         parser.add_argument(
-            "--username", help="Docker username", default=cfg.lab_repo_username
-        )
-        parser.add_argument(
-            "--password", help="Docker password", default=cfg.lab_repo_password
-        )
-        parser.add_argument(
             "-n",
             "--name",
             help="repository name [{}]".format(lrn),
