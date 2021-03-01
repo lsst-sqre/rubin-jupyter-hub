@@ -13,8 +13,10 @@ import urllib.parse
 import urllib.request
 
 from eliot import start_action
-from rubin_jupyter_utils.helpers import make_logger
-
+from kubernetes.client import CoreV1Api, RbacAuthorizationV1Api
+from rubin_jupyter_utils.helpers import (make_logger, get_execution_namespace,
+                                         load_k8s_config)
+from rubin_jupyter_utils.config import RubinConfig
 
 class ScanRepo(object):
     """Class to scan repository and create results.
@@ -86,6 +88,9 @@ class ScanRepo(object):
             + "/"
         )
         self.logger.debug("Registry URL: {}".format(self.registry_url))
+        self.config = RubinConfig()
+        load_k8s_config()
+        self.client = CoreV1Api()
 
     def __enter__(self):
         return self
@@ -800,25 +805,25 @@ class ScanRepo(object):
                 authtok = jresp.get("token")
                 if authtok:
                     self.logger.info("Received an auth token.")
-                    self.logger.warning("{}".format(authtok))
                     return {"Authorization": "Bearer {}".format(authtok)}
                 else:
                     self.logger.error("No auth token: {}".format(jresp))
             return {}
 
     def _extract_auth_from_pull_secret(self):
-        host = self.host
-        pull_secret_name = self.config.pull_secret_name
-        if not pull_secret_name:
-            return None, None
-        secret = self.client.read_namespaced_secret(
-            pull_secret_name,
-            get_execution_namespace(),
-        )
-        b64_auths = secret.data["auths"]
-        json_auths = base64.b64decode(b64_auths)
-        auths = json.load(json_auths)
-        hostauth = auths.get(host)
-        if not hostauth:  # No auth for given host
-            return None, None
-        return hostauth["username"], hostauth["password"]
+        with start_action(action_type="_extract_auth_from_pull_secret"):
+            host = self.host
+            pull_secret_name = self.config.pull_secret_name
+            if not pull_secret_name:
+                return None, None
+            secret = self.client.read_namespaced_secret(
+                pull_secret_name,
+                get_execution_namespace(),
+            )
+            b64_auths = secret.data[".dockerconfigjson"]
+            json_auths = base64.b64decode(b64_auths).decode('utf-8')
+            auths = json.loads(json_auths)
+            hostauth = auths.get(host)
+            if not hostauth:  # No auth for given host
+                return None, None
+            return hostauth["username"], hostauth["password"]

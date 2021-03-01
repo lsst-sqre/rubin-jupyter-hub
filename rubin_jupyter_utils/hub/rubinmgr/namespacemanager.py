@@ -15,6 +15,7 @@ from rubin_jupyter_utils.helpers import (
     assemble_gids,
     get_pull_secret,
     get_pull_secret_reflist,
+    ensure_pull_secret
 )
 
 
@@ -97,7 +98,9 @@ class RubinNamespaceManager(LoggableChild):
 
             cfg = self.parent.config
             psnm = cfg.pull_secret_name
-            pull_secret = get_pull_secret(pull_secret_name=psnm)
+            pull_secret = get_pull_secret(pull_secret_name=psnm,
+                                          api=self.parent.api,
+                                          log=self.log)
             pull_secret_ref = get_pull_secret_reflist(pull_secret_name=psnm)
             account = "{}-svcacct".format(username)
             self.service_account = account
@@ -195,29 +198,14 @@ class RubinNamespaceManager(LoggableChild):
             account = self.service_account
 
             if pull_secret:
-                try:
-                    self.log.info("Attempting to create pull secret.")
-                    api.create_namespaced_secret(
-                        namespace=namespace, body=pull_secret
-                    )
-                except ApiException as e:
-                    if e.status != 409:
-                        self.log.exception(
-                            (
-                                "Create pull secret '{}' "
-                                + "in namespace '{}' "
-                                + "failed: '{}"
-                            ).format(account, namespace, e)
-                        )
-                        raise
-                    else:
-                        self.log.info(
-                            (
-                                "Pull secret '{}' "
-                                + "in namespace '{}' "
-                                + "already exists."
-                            ).format(account, namespace)
-                        )
+                self.log.info("Attempting to create pull secret.")
+                # We have this one as a helper function because of
+                #  scanrepo
+                ensure_pull_secret(pull_secret,
+                                   namespace=namespace,
+                                   api=api,
+                                   log=self.log
+                                   )
 
             try:
                 self.log.info("Attempting to create service account.")

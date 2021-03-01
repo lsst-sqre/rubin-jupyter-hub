@@ -4,11 +4,12 @@ import os
 import signal
 import time
 from eliot import start_action
-from kubernetes import client, config
+from kubernetes import client
 from .scanrepo import ScanRepo
 from threading import Thread
 from rubin_jupyter_utils.helpers import (
     make_logger,
+    load_k8s_config,
     get_pull_secret,
     get_pull_secret_reflist,
     ensure_pull_secret,
@@ -36,10 +37,7 @@ class Prepuller(object):
             self.logger.warning("Using kubernetes namespace 'default'")
             namespace = "default"
         self.namespace = namespace
-        try:
-            config.load_incluster_config()
-        except config.ConfigException:
-            config.load_kube_config()
+        load_k8s_config()
         self.client = client.CoreV1Api()
         self.images = []
         self.nodes = []
