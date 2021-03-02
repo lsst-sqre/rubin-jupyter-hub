@@ -14,9 +14,13 @@ import urllib.request
 
 from eliot import start_action
 from kubernetes.client import CoreV1Api, RbacAuthorizationV1Api
-from rubin_jupyter_utils.helpers import (make_logger, get_execution_namespace,
-                                         load_k8s_config)
+from rubin_jupyter_utils.helpers import (
+    make_logger,
+    get_execution_namespace,
+    load_k8s_config,
+)
 from rubin_jupyter_utils.config import RubinConfig
+
 
 class ScanRepo(object):
     """Class to scan repository and create results.
@@ -821,7 +825,7 @@ class ScanRepo(object):
                 get_execution_namespace(),
             )
             b64_auths = secret.data[".dockerconfigjson"]
-            json_auths = base64.b64decode(b64_auths).decode('utf-8')
+            json_auths = base64.b64decode(b64_auths).decode("utf-8")
             auths = json.loads(json_auths)
             hostauth = auths.get(host)
             if not hostauth:  # No auth for given host
