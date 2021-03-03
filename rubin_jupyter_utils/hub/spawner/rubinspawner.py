@@ -158,8 +158,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             self.rubin_mgr.namespace_mgr.set_namespace(ns)
 
     def get_user_namespace(self):
-        """Return namespace for user pods (and ancillary objects).
-        """
+        """Return namespace for user pods (and ancillary objects)."""
         with start_action(action_type="get_user_namespace"):
             defname = self._namespace_default()
             # We concatenate the default namespace and the name so that we
@@ -191,8 +190,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
 
     @gen.coroutine
     def stop(self, now=False):
-        """After stopping pod, delete the namespace if that option is set.
-        """
+        """After stopping pod, delete the namespace if that option is set."""
         with start_action(action_type="rubinspawner_stop"):
             deleteme = self.delete_namespace_on_stop
             self.log.debug("Attempting to stop user pod.")
@@ -217,8 +215,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
                 self.log.debug("'delete_namespace_on_stop' not set.")
 
     def options_from_form(self, formdata=None):
-        """Delegate to form manager.
-        """
+        """Delegate to form manager."""
         with start_action(action_type="options_from_form"):
             return self.rubin_mgr.optionsform_mgr.options_from_form(formdata)
 
@@ -333,7 +330,7 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             colon = image.find(":")
             if colon > -1:
                 imgname = image[:colon]
-                tag = image[(colon + 1):]
+                tag = image[(colon + 1) :]
                 if tag == "recommended" or tag.startswith("latest"):
                     # Resolve convenience tags to real build tags.
                     self.log.debug("Resolving tag '{}'".format(tag))
@@ -403,8 +400,9 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
         # Add multus annotations if requested
         if cfg.enable_multus:
             annotations.update(cfg.multus_annotation)
-            self.init_containers.append(_create_multus_init_container(
-                cfg.multus_init_container_image))
+            self.init_containers.append(
+                _create_multus_init_container(cfg.multus_init_container_image)
+            )
         if cfg.lab_dds_interface:
             pod_env["LSST_DDS_INTERFACE"] = cfg.lab_dds_interface
         if cfg.lab_dds_domain:
@@ -431,13 +429,15 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             claims = ast["claims"]
             strict_ldap = self.rubin_mgr.config.strict_ldap_groups
             self.supplemental_gids = get_supplemental_gids(claims, strict_ldap)
-            self.extra_container_config.update({
-                "security_context": {
-                    "runAsUser": uid,
-                    "runAsGroup": uid,
-                    "allowPrivilegeEscalation": False
+            self.extra_container_config.update(
+                {
+                    "security_context": {
+                        "runAsUser": uid,
+                        "runAsGroup": uid,
+                        "allowPrivilegeEscalation": False,
+                    }
                 }
-            })
+            )
         self.set_user_namespace()
         daskconfig = None
         if cfg.allow_dask_spawn:

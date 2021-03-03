@@ -9,8 +9,7 @@ def parse_args(
     desc="Get list of Lab Images for display or prepulling",
     component="scanner",
 ):
-    """Parse command-line arguments.
-    """
+    """Parse command-line arguments."""
     with start_action(action_type="parse_args"):
         parser = argparse.ArgumentParser(description=desc)
         dbg = cfg.debug
@@ -66,12 +65,6 @@ def parse_args(
             "--org",
             help="repository owner [{}]".format(lro),
             default=lro,
-        )
-        parser.add_argument(
-            "--username", help="Docker username", default=cfg.lab_repo_username
-        )
-        parser.add_argument(
-            "--password", help="Docker password", default=cfg.lab_repo_password
         )
         parser.add_argument(
             "-n",

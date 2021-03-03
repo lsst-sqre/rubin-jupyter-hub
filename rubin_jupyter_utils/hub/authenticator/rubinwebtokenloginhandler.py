@@ -10,8 +10,7 @@ from rubin_jupyter_utils.helpers import parse_access_token
 class RubinWebTokenLoginHandler(JSONWebTokenLoginHandler):
     @gen.coroutine
     def get(self):
-        """Authenticate on get() via reading the token from HTTP headers.
-        """
+        """Authenticate on get() via reading the token from HTTP headers."""
         # This causes some token context error in Eliot
         # with start_action(action_type="get"):
         _ = yield self._jwt_authenticate()

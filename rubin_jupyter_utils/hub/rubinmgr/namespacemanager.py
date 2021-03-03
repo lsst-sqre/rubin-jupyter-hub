@@ -15,12 +15,12 @@ from rubin_jupyter_utils.helpers import (
     assemble_gids,
     get_pull_secret,
     get_pull_secret_reflist,
+    ensure_pull_secret,
 )
 
 
 class RubinNamespaceManager(LoggableChild):
-    """Class to provide namespace manipulation.
-    """
+    """Class to provide namespace manipulation."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -91,16 +91,17 @@ class RubinNamespaceManager(LoggableChild):
             self.log.debug("Namespace resources ensured.")
 
     def def_namespaced_account_objects(self):
-        """Define K8s objects for things we need in the namespace.
-        """
+        """Define K8s objects for things we need in the namespace."""
         with start_action(action_type="define_namespaced_account_objects"):
             namespace = self.namespace
             username = self.parent.user.escaped_name
 
             cfg = self.parent.config
-            pull_secret = get_pull_secret(cfg)
-            pull_secret_ref = get_pull_secret_reflist(pull_secret)
-
+            psnm = cfg.pull_secret_name
+            pull_secret = get_pull_secret(
+                pull_secret_name=psnm, api=self.parent.api, log=self.log
+            )
+            pull_secret_ref = get_pull_secret_reflist(pull_secret_name=psnm)
             account = "{}-svcacct".format(username)
             self.service_account = account
             acd = "argocd.argoproj.io/"
@@ -197,29 +198,12 @@ class RubinNamespaceManager(LoggableChild):
             account = self.service_account
 
             if pull_secret:
-                try:
-                    self.log.info("Attempting to create pull secret.")
-                    api.create_namespaced_secret(
-                        namespace=namespace, body=pull_secret
-                    )
-                except ApiException as e:
-                    if e.status != 409:
-                        self.log.exception(
-                            (
-                                "Create pull secret '{}' "
-                                + "in namespace '{}' "
-                                + "failed: '{}"
-                            ).format(account, namespace, e)
-                        )
-                        raise
-                    else:
-                        self.log.info(
-                            (
-                                "Pull secret '{}' "
-                                + "in namespace '{}' "
-                                + "already exists."
-                            ).format(account, namespace)
-                        )
+                self.log.info("Attempting to create pull secret.")
+                # We have this one as a helper function because of
+                #  scanrepo
+                ensure_pull_secret(
+                    pull_secret, namespace=namespace, api=api, log=self.log
+                )
 
             try:
                 self.log.info("Attempting to create service account.")
@@ -650,8 +634,7 @@ class RubinNamespaceManager(LoggableChild):
             )
 
     def dump(self):
-        """Return dict for pretty-printing.
-        """
+        """Return dict for pretty-printing."""
         nd = {
             "namespace": self.namespace,
             "service_account": self.service_account,

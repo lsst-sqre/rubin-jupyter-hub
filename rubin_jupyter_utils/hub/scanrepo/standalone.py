@@ -4,8 +4,7 @@ from .parse_args import parse_args
 
 
 def standalone():
-    """Standalone command for scanning repo.
-    """
+    """Standalone command for scanning repo."""
     args = parse_args()
     scanner = ScanRepo(
         host=args.repo,

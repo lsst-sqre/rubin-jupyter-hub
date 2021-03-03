@@ -7,8 +7,7 @@ from rubin_jupyter_utils.helpers import Singleton
 
 
 class SingletonScanner(ScanRepo, metaclass=Singleton):
-    """Singleton Object to hold rate-limited scanner.
-    """
+    """Singleton Object to hold rate-limited scanner."""
 
     def __init__(self, **kwargs):
         min_refresh_time = kwargs.get("min_refresh_time", 60)
@@ -33,8 +32,7 @@ class SingletonScanner(ScanRepo, metaclass=Singleton):
         thd.start()
 
     def scan(self):
-        """Execute repo scan.
-        """
+        """Execute repo scan."""
         with start_action(action_type="scan"):
             _timeout = 300
             _initialdelay = 0.2
@@ -108,36 +106,31 @@ class SingletonScanner(ScanRepo, metaclass=Singleton):
                 self.process_resultmap()
 
     def get_data(self):
-        """Return repo data.
-        """
+        """Return repo data."""
         with start_action(action_type="get_data"):
             self.scan_if_needed()
             return self.data
 
     def get_display_tags(self):
-        """Return all tags in repo.
-        """
+        """Return all tags in repo."""
         with start_action(action_type="get_display_tags"):
             self.scan_if_needed()
             return self.display_tags
 
     def get_all_scan_results(self):
-        """Return results from repository scan as dict.
-        """
+        """Return results from repository scan as dict."""
         with start_action(action_type="get_all_scan_results"):
             self.scan_if_needed()
             return self._results_map
 
     def extract_image_info(self):
-        """Get info for all images.
-        """
+        """Get info for all images."""
         with start_action(action_type="extract_image_info"):
             self.scan_if_needed()
             return super().extract_image_info()
 
     def report(self):
-        """Report results of scan.
-        """
+        """Report results of scan."""
         with start_action(action_type="report"):
             self.scan_if_needed()
             return super().report()

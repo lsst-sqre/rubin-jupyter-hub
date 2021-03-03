@@ -52,7 +52,8 @@ class MultiNamespacedKubeSpawner(KubeSpawner):
     def _start_reflector(self, key, ReflectorClass, replace=True, **kwargs):
         def on_reflector_failure():
             self.log.critical(
-                "%s reflector failed!", key.title(),
+                "%s reflector failed!",
+                key.title(),
             )
 
         self.log.debug("Starting reflector {}".format(key.title()))

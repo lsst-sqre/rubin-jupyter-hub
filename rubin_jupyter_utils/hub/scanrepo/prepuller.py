@@ -4,11 +4,12 @@ import os
 import signal
 import time
 from eliot import start_action
-from kubernetes import client, config
+from kubernetes import client
 from .scanrepo import ScanRepo
 from threading import Thread
 from rubin_jupyter_utils.helpers import (
     make_logger,
+    load_k8s_config,
     get_pull_secret,
     get_pull_secret_reflist,
     ensure_pull_secret,
@@ -17,8 +18,7 @@ from rubin_jupyter_utils.config import RubinConfig
 
 
 class Prepuller(object):
-    """Class for generating and reaping the Pods for the prepuller.
-    """
+    """Class for generating and reaping the Pods for the prepuller."""
 
     def __init__(self, args=None):
         self.logger = make_logger()
@@ -37,10 +37,7 @@ class Prepuller(object):
             self.logger.warning("Using kubernetes namespace 'default'")
             namespace = "default"
         self.namespace = namespace
-        try:
-            config.load_incluster_config()
-        except config.ConfigException:
-            config.load_kube_config()
+        load_k8s_config()
         self.client = client.CoreV1Api()
         self.images = []
         self.nodes = []
@@ -121,8 +118,7 @@ class Prepuller(object):
             return cleanup
 
     def update_images_from_repo(self):
-        """Scan the repo looking for images.
-        """
+        """Scan the repo looking for images."""
         with start_action(action_type="update_images_from_repo"):
             if not self.repo:
                 self.repo = ScanRepo(
@@ -316,8 +312,7 @@ class Prepuller(object):
             return podname
 
     def _derive_pod_name(self, spec):
-        """Pod name is based on image and node.
-        """
+        """Pod name is based on image and node."""
         with start_action(action_type="_derive_pod_name"):
             return (
                 "pp-"
@@ -327,8 +322,7 @@ class Prepuller(object):
             )
 
     def run_pods(self):
-        """Run pods for all nodes.  Parallelize across nodes.
-        """
+        """Run pods for all nodes.  Parallelize across nodes."""
         with start_action(action_type="run_pods"):
             tlist = []
             for node in self.pod_specs:
@@ -395,8 +389,7 @@ class Prepuller(object):
                 tries = tries + 1
 
     def delete_pod(self, podname):
-        """Delete a named pod.
-        """
+        """Delete a named pod."""
         with start_action(action_type="delete_pod"):
             v1 = self.client
             self.logger.debug("Deleting pod %s" % podname)

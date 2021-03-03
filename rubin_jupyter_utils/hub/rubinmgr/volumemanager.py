@@ -10,8 +10,7 @@ CONFIGMAPS = PWFILES + ["mountpoints", "access-token", "dask-config"]
 
 
 class RubinVolumeManager(LoggableChild):
-    """Class to provide support for document-driven Volume assignment.
-    """
+    """Class to provide support for document-driven Volume assignment."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -194,8 +193,7 @@ class RubinVolumeManager(LoggableChild):
             return mountpoint[1:].replace("/", "-")
 
     def get_volume_list(self):
-        """Get a list object suitable for yaml-encoding.
-        """
+        """Get a list object suitable for yaml-encoding."""
         with start_action(action_type="get_volume_list"):
             vols = self.k8s_volumes
             if not vols:
@@ -281,8 +279,7 @@ class RubinVolumeManager(LoggableChild):
             return benc
 
     def dump(self):
-        """Return contents dict for aggregation and pretty-printing.
-        """
+        """Return contents dict for aggregation and pretty-printing."""
         vd = {
             "parent": str(self.parent),
             "volume_list": self.volume_list,

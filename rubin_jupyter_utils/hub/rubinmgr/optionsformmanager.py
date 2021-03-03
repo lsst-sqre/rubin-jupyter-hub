@@ -13,8 +13,7 @@ MAX_CACHE_AGE = 1200  # get a new tag list if it's more than 20 minutes old
 
 
 class RubinOptionsFormManager(LoggableChild):
-    """Class to create and read a spawner form.
-    """
+    """Class to create and read a spawner form."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -23,8 +22,7 @@ class RubinOptionsFormManager(LoggableChild):
         self.options_form_data = None
 
     def get_options_form(self):
-        """Create an Rubin Options Form from parent's config object.
-        """
+        """Create an Rubin Options Form from parent's config object."""
         with start_action(action_type="get_options_form"):
             # Make options form by scanning container repository, then cache.
             # For a single spawning session, you always get the same form.
@@ -109,8 +107,7 @@ class RubinOptionsFormManager(LoggableChild):
             return optform
 
     def resolve_tag(self, tag):
-        """Delegate to scanner to resolve convenience tags.
-        """
+        """Delegate to scanner to resolve convenience tags."""
         with start_action(action_type="resolve_tag"):
             self.log.debug("Resolving tag for '{}'.".format(tag))
             rtag = self._scanner.resolve_tag(tag)
@@ -192,8 +189,7 @@ class RubinOptionsFormManager(LoggableChild):
             self.log.debug("Finished _make_sizemap() for '{}'.".format(uname))
 
     def options_from_form(self, formdata=None):
-        """Get user selections.
-        """
+        """Get user selections."""
         with start_action(action_type="options_from_form"):
             options = None
             if formdata:
@@ -211,8 +207,7 @@ class RubinOptionsFormManager(LoggableChild):
             return options
 
     def dump(self):
-        """Return contents dict for pretty-printing.
-        """
+        """Return contents dict for pretty-printing."""
         sd = {
             "parent": str(self.parent),
             "sizemap": self.sizemap,

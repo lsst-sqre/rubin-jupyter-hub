@@ -5,8 +5,7 @@ from .prepuller import Prepuller
 
 
 def prepullerstandalone():
-    """Run prepuller process as a standalone command.
-    """
+    """Run prepuller process as a standalone command."""
     lc = RubinConfig()
     args = parse_args(
         cfg=lc, desc="Set up DaemonSets to prepull.", component="prepuller"

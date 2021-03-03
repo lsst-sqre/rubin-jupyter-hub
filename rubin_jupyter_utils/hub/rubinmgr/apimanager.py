@@ -1,22 +1,13 @@
 import json
 from .. import LoggableChild
-from rubin_jupyter_utils.helpers import Singleton
+from rubin_jupyter_utils.helpers import Singleton, load_k8s_config
 from kubernetes.client import CoreV1Api, RbacAuthorizationV1Api
-from kubernetes.config import load_incluster_config, load_kube_config
-from kubernetes.config.config_exception import ConfigException
 
 
 class RubinAPIManager(LoggableChild, metaclass=Singleton):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        try:
-            load_incluster_config()
-        except ConfigException:
-            self.log.warning("In-cluster config failed! Falling back.")
-            try:
-                load_kube_config()
-            except ValueError as exc:
-                self.log.error("Still errored: {}".format(exc))
+        load_k8s_config()
         rbac_api = kwargs.pop("rbac_api", None)
         if not rbac_api:
             rbac_api = RbacAuthorizationV1Api()
@@ -27,8 +18,7 @@ class RubinAPIManager(LoggableChild, metaclass=Singleton):
         self.api = api
 
     def dump(self):
-        """Return contents dict for aggregation and pretty-printing.
-        """
+        """Return contents dict for aggregation and pretty-printing."""
         ad = {
             "parent": str(self.parent),
             "api": str(self.api),

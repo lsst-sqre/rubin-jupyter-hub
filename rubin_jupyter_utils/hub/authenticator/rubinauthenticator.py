@@ -32,8 +32,7 @@ class RubinAuthenticator(Authenticator):
         self.token = None
 
     def dump(self):
-        """Return dict suitable for pretty-printing.
-        """
+        """Return dict suitable for pretty-printing."""
         ad = {
             "enable_auth_state": self.enable_auth_state,
             "delete_invalid_users": self.delete_invalid_users,

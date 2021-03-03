@@ -5,8 +5,7 @@ from . import SingletonScanner
 
 
 class Reaper(SingletonScanner):
-    """Class to allow implementation of image retention policy.
-    """
+    """Class to allow implementation of image retention policy."""
 
     # We don't need to categorize releases since we never delete any of
     #  them.
@@ -66,15 +65,13 @@ class Reaper(SingletonScanner):
             self.reapable = reapable
 
     def report_reapable(self):
-        """Return a space-separated list of reapable images.
-        """
+        """Return a space-separated list of reapable images."""
         with start_action(action_type="report_reapable"):
             self._select_victims()
             return " ".join(self.reapable.keys())
 
     def reap(self):
-        """Select and delete images.
-        """
+        """Select and delete images."""
         with start_action(action_type="reap"):
             self._select_victims()
             self._delete_from_repo()
@@ -124,8 +121,8 @@ class Reaper(SingletonScanner):
         #  https://github.com/docker/hub-feedback/issues/496
         with start_action(action_type="_delete_tags_from_docker_hub"):
             self.logger.info("Deleting tags from Docker Hub.")
-            r_user = os.getenv("IMAGE_REAPER_USER")
-            r_pw = os.getenv("IMAGE_REAPER_PASSWORD")
+            r_user = self.config.reaper_user
+            r_pw = self.config.reaper_password
             data = {"username": r_user, "password": r_pw}
             headers = {
                 "Content-Type": "application/json",
