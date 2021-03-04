@@ -138,8 +138,6 @@ class Prepuller(object):
                     insecure=self.args.insecure,
                     cachefile=self.cachefile,
                     debug=self.args.debug,
-                    username=self.args.username,
-                    password=self.args.password,
                 )
             if not self.args.no_scan:
                 if self.args.repo:
