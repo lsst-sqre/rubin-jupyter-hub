@@ -67,10 +67,14 @@ class Prepuller(object):
             signal.signal(signal.SIGALRM, self._timeout_handler)
             signal.alarm(self.args.timeout)
         self.config = RubinConfig()
-        pull_secret = get_pull_secret(self.config)
+        pull_secret = get_pull_secret(self.config.pull_secret_name,
+                                      self.client,
+                                      self.logger
+                                      )
         self.pull_secret_reflist = []
         if pull_secret:
-            ensure_pull_secret(pull_secret, self.namespace, self.client)
+            ensure_pull_secret(pull_secret, self.namespace, self.client,
+                               self.logger)
             self.pull_secret_reflist = get_pull_secret_reflist(pull_secret)
 
     def _timeout_handler(self, signum, frame):
