@@ -413,6 +413,14 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             pod_env["LSST_DDS_DOMAIN"] = cfg.lab_dds_domain
         if cfg.lab_dds_partition_prefix:
             pod_env["LSST_DDS_PARTITION_PREFIX"] = cfg.lab_dds_partition_prefix
+        if cfg.butler_s3_endpoint_url:
+            pod_env["S3_ENDPOINT_URL"] = cfg.butler_s3_endpoint_url
+        if cfg.butler_aws_access_key:
+            pod_env["AWS_ACCESS_KEY_ID"] = cfg.butler_aws_access_key
+        if cfg.butler_aws_secret_key:
+            pod_env["AWS_SECRET_ACCESS_KEY"] = cfg.butler_aws_secret_key
+        if cfg.butler_pgpassword:
+            pod_env["PGPASSWORD"] = cfg.butler_pgpassword
         # Generate the pod definition.
         sanitized_env = sanitize_dict(
             pod_env,
