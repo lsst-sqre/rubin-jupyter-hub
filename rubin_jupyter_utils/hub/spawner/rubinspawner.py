@@ -9,6 +9,8 @@ from rubin_jupyter_utils.helpers import (
     sanitize_dict,
     assemble_gids,
     get_supplemental_gids,
+    call_moneypenny,
+    dossier_from_auth_state,
 )
 from .multispawner import MultiNamespacedKubeSpawner
 from .objects import _create_multus_init_container
@@ -402,10 +404,11 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             annotations.update(cfg.multus_annotation)
             # If we had a failed spawn, we might already have the container
             #  defined in the pod spec.
-            cnames = [ c.name for c in self.init_containers ]
+            cnames = [c.name for c in self.init_containers]
             if "multus-init" not in cnames:
-                i_ctr=_create_multus_init_container(
-                    cfg.multus_init_container_image)
+                i_ctr = _create_multus_init_container(
+                    cfg.multus_init_container_image
+                )
                 self.init_containers.append(i_ctr)
         if cfg.lab_dds_interface:
             pod_env["LSST_DDS_INTERFACE"] = cfg.lab_dds_interface
@@ -450,6 +453,12 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
                     }
                 }
             )
+        # Check to see if Moneypenny is turned on, and if so, delegate
+        #  provisioning to her.
+        if cfg.turn_on_moneypenny:
+            ast = self.cached_auth_state
+            dossier = dossier_from_auth_state(ast, log=self.log)
+            call_moneypenny(dossier, log=self.log)
         self.set_user_namespace()
         daskconfig = None
         if cfg.allow_dask_spawn:
