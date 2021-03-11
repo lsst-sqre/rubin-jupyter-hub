@@ -404,10 +404,11 @@ class RubinSpawner(MultiNamespacedKubeSpawner):
             annotations.update(cfg.multus_annotation)
             # If we had a failed spawn, we might already have the container
             #  defined in the pod spec.
-            cnames = [ c.name for c in self.init_containers ]
+            cnames = [c.name for c in self.init_containers]
             if "multus-init" not in cnames:
-                i_ctr=_create_multus_init_container(
-                    cfg.multus_init_container_image)
+                i_ctr = _create_multus_init_container(
+                    cfg.multus_init_container_image
+                )
                 self.init_containers.append(i_ctr)
         if cfg.lab_dds_interface:
             pod_env["LSST_DDS_INTERFACE"] = cfg.lab_dds_interface
