@@ -190,7 +190,7 @@ class RubinVolumeManager(LoggableChild):
 
     def _get_volume_name_for_mountpoint(self, mountpoint):
         with start_action(action_type="_get_volume_name_for_mountpoint"):
-            return mountpoint[1:].replace("/", "-")
+            return mountpoint[1:].replace("/", "-").lower()
 
     def get_volume_list(self):
         """Get a list object suitable for yaml-encoding."""
