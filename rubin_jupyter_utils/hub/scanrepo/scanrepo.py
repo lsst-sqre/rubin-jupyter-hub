@@ -34,6 +34,8 @@ class ScanRepo(object):
         path="",
         owner="",
         name="",
+        username="",
+        password="",
         experimentals=0,
         dailies=3,
         weeklies=2,
@@ -66,6 +68,10 @@ class ScanRepo(object):
         self.weeklies = weeklies
         self.releases = releases
         self.recommended = recommended
+        if not username or not password:
+            username, password = self._extract_auth_from_pull_secret()
+        self.username = username
+        self.password = password
         protocol = "https"
         self.insecure = insecure
         if self.insecure:
@@ -756,7 +762,12 @@ class ScanRepo(object):
         with start_action(action_type="_authenticate_to_repo"):
             self.logger.warning("Authentication Required.")
             self.logger.warning("Headers: {}".format(headers))
-            username, password = self._extract_auth_from_pull_secret()
+            if not self.username or not self.password:
+                self.username, self.password = \
+                    self._extract_auth_from_pull_secret()
+            username = self.username
+            password = self.password
+            self.log.debug(f"{username}:{password}")  # FIXME
             if not username and password:  # Didn't extract auth info
                 return {}
             magicheader = headers.get(
@@ -805,7 +816,10 @@ class ScanRepo(object):
                 tresp = requests.get(
                     endpoint, headers=headers, params=hd, json=True, auth=auth
                 )
-                jresp = tresp.json()
+                try:
+                    jresp = tresp.json()
+                except json.decoder.JSONDecodeError:
+                    self.logger.error(f"Could not json decode '{tresp}'")
                 authtok = jresp.get("token")
                 if authtok:
                     self.logger.info("Received an auth token.")

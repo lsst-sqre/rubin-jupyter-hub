@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import rubin_jupyter_utils.hub as rh
 
 q = rh.SingletonScanner(
@@ -10,6 +11,8 @@ q = rh.SingletonScanner(
     weeklies=4,
     releases=3,
     cachefile="/tmp/reposcan.json",
+    password=os.environ.get("DOCKER_PASSWORD", ""),
+    username=os.environ.get("DOCKER_USERNAME", "")
 )
 q.scan()
 q.get_all_tags()

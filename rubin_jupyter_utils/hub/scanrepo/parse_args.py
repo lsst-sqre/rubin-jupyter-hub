@@ -191,6 +191,16 @@ def parse_args(
                 help="Kubernetes namespace [{}]".format(ppn),
                 default=ppn,
             )
+            parser.add_argument(
+                "--username",
+                help="username for Docker repository",
+                default=""
+            )
+            parser.add_argument(
+                "--password",
+                help="password for Docker repository",
+                default=""
+            )
         if component == "reaper":
             parser.add_argument(
                 "--dry-run",
