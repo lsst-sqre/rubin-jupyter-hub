@@ -68,10 +68,6 @@ class ScanRepo(object):
         self.weeklies = weeklies
         self.releases = releases
         self.recommended = recommended
-        if not username or not password:
-            username, password = self._extract_auth_from_pull_secret()
-        self.username = username
-        self.password = password
         protocol = "https"
         self.insecure = insecure
         if self.insecure:
@@ -101,6 +97,10 @@ class ScanRepo(object):
         self.config = RubinConfig()
         load_k8s_config()
         self.client = CoreV1Api()
+        if not username or not password:
+            username, password = self._extract_auth_from_pull_secret()
+        self.username = username
+        self.password = password
 
     def __enter__(self):
         return self
