@@ -767,19 +767,19 @@ class ScanRepo(object):
                     self._extract_auth_from_pull_secret()
             username = self.username
             password = self.password
-            self.log.debug(f"{username}:{password}")  # FIXME
+            self.log.debug(f"Docker creds: {username}:{password}")  # FIXME
             if not username and password:  # Didn't extract auth info
                 return {}
             magicheader = headers.get(
                 "WWW-Authenticate", headers.get("Www-Authenticate", None)
-            )
-            if magicheader.startswith("BASIC"):
+            ).lower()
+            if magicheader.startswith("basic "):
                 auth_hdr = base64.b64encode(
                     "{}:{}".format(username, password).encode("ascii")
                 )
                 self.logger.info("Auth header now: {}".format(auth_hdr))
                 return {"Authorization": "Basic " + auth_hdr.decode()}
-            if magicheader.startswith("Bearer "):
+            if magicheader.startswith("bearer "):
                 hd = {}
                 hl = magicheader[7:].split(",")
                 for hn in hl:
@@ -813,6 +813,7 @@ class ScanRepo(object):
                 self.logger.warning(
                     "Requesting auth scope {}".format(hd["scope"])
                 )
+                self.logger.debug(f"Requesting with auth '{auth}'")
                 tresp = requests.get(
                     endpoint, headers=headers, params=hd, json=True, auth=auth
                 )
@@ -820,6 +821,7 @@ class ScanRepo(object):
                     jresp = tresp.json()
                 except json.decoder.JSONDecodeError:
                     self.logger.error(f"Could not json decode '{tresp}'")
+                    raise
                 authtok = jresp.get("token")
                 if authtok:
                     self.logger.info("Received an auth token.")
