@@ -767,7 +767,7 @@ class ScanRepo(object):
                     self._extract_auth_from_pull_secret()
             username = self.username
             password = self.password
-            self.log.debug(f"Docker creds: {username}:{password}")  # FIXME
+            self.logger.debug(f"Docker creds: {username}:{password}")  # FIXME
             if not username and password:  # Didn't extract auth info
                 return {}
             magicheader = headers.get(
