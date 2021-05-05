@@ -13,7 +13,8 @@ import urllib.parse
 import urllib.request
 
 from eliot import start_action
-from kubernetes.client import CoreV1Api, RbacAuthorizationV1Api
+from kubernetes.client import CoreV1Api
+from requests.auth import HTTPBasicAuth
 from rubin_jupyter_utils.helpers import (
     make_logger,
     get_execution_namespace,
@@ -97,10 +98,11 @@ class ScanRepo(object):
         self.config = RubinConfig()
         load_k8s_config()
         self.client = CoreV1Api()
-        if not username or not password:
-            username, password = self._extract_auth_from_pull_secret()
-        self.username = username
-        self.password = password
+        self.username = ""
+        self.password = ""
+        if username and password:
+            self.username = username
+            self.password = password
 
     def __enter__(self):
         return self
@@ -765,29 +767,31 @@ class ScanRepo(object):
             if not self.username or not self.password:
                 self.username, self.password = \
                     self._extract_auth_from_pull_secret()
-            username = self.username
-            password = self.password
+                self.logger.debug(f"Got {self.username}:{self.password}"
+                                  + " from pull secret")
+            username = self.username or ""
+            password = self.password or ""
             self.logger.debug(f"Docker creds: {username}:{password}")  # FIXME
             if not username and password:  # Didn't extract auth info
-                return {}
+                self.logger.warning("Did not get username/pw")
+                # Will probably fail when we try to really authenticate
+            auth = HTTPBasicAuth(username, password)
             challenge = headers.get(
                 "WWW-Authenticate", headers.get("Www-Authenticate", None)
             )
             c_type, params = challenge.split(" ", 1)
             c_type = c_type.lower()
             if c_type == "basic":
-                auth_hdr = base64.b64encode(
-                    "{}:{}".format(username, password).encode("ascii")
-                )
-                self.logger.info("Auth header now: {}".format(auth_hdr))
-                return {"Authorization": "Basic " + auth_hdr.decode()}
+                enc_auth = base64.b64encode(bytes(f'{username}:{password}',
+                                            encoding='utf-8')).decode('utf-8')
+                self.logger.info("Auth header now: {}".format(enc_auth))
+                return {"Authorization": "Basic " + enc_auth}
             if c_type == "bearer":
                 parts = {}
                 for p in params.split(","):
-                    logger.debug(p)
+                    self.logger.debug(p)
                     (k, v) = p.split("=")
                     parts[k] = v.replace('"', "")
-                auth = None
                 if (
                         not parts
                         or "realm" not in parts
@@ -830,8 +834,11 @@ class ScanRepo(object):
             )
             b64_auths = secret.data[".dockerconfigjson"]
             json_auths = base64.b64decode(b64_auths).decode("utf-8")
-            auths = json.loads(json_auths)
+            outer_auths = json.loads(json_auths)
+            auths = outer_auths["auths"]
+            self.logger.debug(f"Host: {host} / Auths: {auths}")
             hostauth = auths.get(host)
             if not hostauth:  # No auth for given host
+                self.logger.warning(f"No auth for host {host}")
                 return None, None
             return hostauth["username"], hostauth["password"]
