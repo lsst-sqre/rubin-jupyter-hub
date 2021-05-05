@@ -770,52 +770,40 @@ class ScanRepo(object):
             self.logger.debug(f"Docker creds: {username}:{password}")  # FIXME
             if not username and password:  # Didn't extract auth info
                 return {}
-            magicheader = headers.get(
+            challenge = headers.get(
                 "WWW-Authenticate", headers.get("Www-Authenticate", None)
-            ).lower()
-            if magicheader.startswith("basic "):
+            )
+            c_type, params = challenge.split(" ", 1)
+            c_type = c_type.lower()
+            if c_type == "basic":
                 auth_hdr = base64.b64encode(
                     "{}:{}".format(username, password).encode("ascii")
                 )
                 self.logger.info("Auth header now: {}".format(auth_hdr))
                 return {"Authorization": "Basic " + auth_hdr.decode()}
-            if magicheader.startswith("bearer "):
-                hd = {}
-                hl = magicheader[7:].split(",")
-                for hn in hl:
-                    il = hn.split("=")
-                    kk = il[0]
-                    vv = il[1].replace('"', "")
-                    hd[kk] = vv
-                if (
-                    not hd
-                    or "realm" not in hd
-                    or "service" not in hd
-                    or "scope" not in hd
-                ):
-                    return None
-                endpoint = hd["realm"]
-                del hd["realm"]
-                # We need to glue in authentication for DELETE, and that alas
-                #  means a userid and password.
-                r_user = username
-                r_pw = password
+            if c_type == "bearer":
+                parts = {}
+                for p in params.split(","):
+                    logger.debug(p)
+                    (k, v) = p.split("=")
+                    parts[k] = v.replace('"', "")
                 auth = None
-                if r_user and r_pw:
-                    auth = (r_user, r_pw)
-                    self.logger.warning("Added Basic Auth credentials")
-                headers = {
-                    "Accept": (
-                        "application/vnd.docker.distribution."
-                        + "manifest.v2+json"
-                    )
-                }
+                if (
+                        not parts
+                        or "realm" not in parts
+                        or "service" not in parts
+                        or "scope" not in parts
+                ):
+                    self.logger.warning("Did not get sufficient info to auth")
+                    self.logger.warning("f{parts}")
+                    return None
+                endpoint = parts["realm"]
                 self.logger.warning(
-                    "Requesting auth scope {}".format(hd["scope"])
+                    "Requesting auth scope {}".format(parts["scope"])
                 )
                 self.logger.debug(f"Requesting with auth '{auth}'")
                 tresp = requests.get(
-                    endpoint, headers=headers, params=hd, json=True, auth=auth
+                    endpoint, headers={}, params=parts, json=True, auth=auth
                 )
                 try:
                     jresp = tresp.json()
