@@ -826,7 +826,10 @@ class ScanRepo(object):
             )
             b64_auths = secret.data[".dockerconfigjson"]
             json_auths = base64.b64decode(b64_auths).decode("utf-8")
-            auths = json.loads(json_auths)
+            outer_auths = json.loads(json_auths)
+            auths = outer_auths.get('auths')
+            if not auths:
+                return None, None
             hostauth = auths.get(host)
             if not hostauth:  # No auth for given host
                 return None, None
